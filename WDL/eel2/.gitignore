@@ -1,1 +1,7 @@
 !asm-nseel-x64-macho.o
+*.bat
+*.cmd
+*.exe
+*.obj
+*.o
+*.zip

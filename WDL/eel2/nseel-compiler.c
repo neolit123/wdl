@@ -453,6 +453,8 @@ static void freeBlocks(llBlock **start);
   DECL_ASMFUNC(mod)
   DECL_ASMFUNC(shl)
   DECL_ASMFUNC(shr)
+  DECL_ASMFUNC(shl_op)
+  DECL_ASMFUNC(shr_op)
   DECL_ASMFUNC(mod_op)
   DECL_ASMFUNC(or)
   DECL_ASMFUNC(and)
@@ -462,6 +464,10 @@ static void freeBlocks(llBlock **start);
   DECL_ASMFUNC(uminus)
   DECL_ASMFUNC(invsqrt)
   DECL_ASMFUNC(exec2)
+  DECL_ASMFUNC(xor)
+  DECL_ASMFUNC(xor_op)
+  DECL_ASMFUNC(compl)
+  DECL_ASMFUNC(compl_op)
 
 static void NSEEL_PProc_GRAM(void *data, int data_size, compileContext *ctx)
 {
@@ -506,6 +512,8 @@ static functionType fnTable1[] = {
   { "_or",    nseel_asm_bor,nseel_asm_bor_end,   2 } ,
   { "loop", nseel_asm_repeat,nseel_asm_repeat_end, 2 },
   { "while", nseel_asm_repeatwhile,nseel_asm_repeatwhile_end, 1 },
+  { "_xor",    nseel_asm_xor,nseel_asm_xor_end,   2 } ,
+  { "_compl",  nseel_asm_compl,nseel_asm_compl_end,  1 } ,
 
 #ifdef __ppc__
   { "_not",   nseel_asm_bnot,nseel_asm_bnot_end,  1, {&g_closefact,&eel_zero,&eel_one} } ,
@@ -536,7 +544,10 @@ static functionType fnTable1[] = {
   { "_addop",nseel_asm_add_op,nseel_asm_add_op_end,2},
   { "_subop",nseel_asm_sub_op,nseel_asm_sub_op_end,2},
   { "_modop",nseel_asm_mod_op,nseel_asm_mod_op_end,2},
-
+  { "_complop",nseel_asm_compl_op,nseel_asm_compl_op_end,2},
+  { "_xorop",nseel_asm_xor_op,nseel_asm_xor_op_end,2},
+  { "_shrop",nseel_asm_shr_op,nseel_asm_shr_op_end,2},
+  { "_shlop",nseel_asm_shl_op,nseel_asm_shl_op_end,2},
 
 #ifdef __ppc__
    { "sin",   nseel_asm_1pdd,nseel_asm_1pdd_end,   1, {&sin} },
@@ -769,6 +780,10 @@ static void *nseel_getFunctionAddress(int fntype, int fn, int *size, NSEEL_PPPRO
 				  return GLUE_realAddress(nseel_asm_uplus,nseel_asm_uplus_end,size);
 			  case FN_UMINUS:
 				  return GLUE_realAddress(nseel_asm_uminus,nseel_asm_uminus_end,size);
+        case FN_XOR:
+				  return GLUE_realAddress(nseel_asm_xor,nseel_asm_xor_end,size);
+			  case FN_COMPL:
+				  return GLUE_realAddress(nseel_asm_compl,nseel_asm_compl_end,size);
 			}
 	  case MATH_FN:
       {
@@ -1159,7 +1174,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 		// fucko, we should look for even more chars, me thinks
         if (nc && (isalnum(nc) 
 #if 1
-				|| nc == '(' || nc == '_' || nc == '!' || nc == '$' 
+				|| nc == '(' || nc == '_' || nc == '!' || nc == '$' || nc == '~' 
 #endif
 				)) c='%';
         else c = ' '; // stray ;
@@ -1198,7 +1213,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 
 			static struct 
 			{
-			  char op[2];
+			  char op[3];
 			  char lscan,rscan;
 			  char *func;
 			} preprocSymbols[] = 
@@ -1208,6 +1223,10 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 				{{'%','='}, 0, 3, "_modop" },
 				{{'|','='}, 0, 3, "_orop" },
 				{{'&','='}, 0, 3, "_andop"},
+				{{'~','='}, 0, 3, "_complop" },
+				{{'`','='}, 0, 3, "_xorop" },
+				{{'<','<','='}, 0, 3, "_shlop" },
+				{{'>','>','='}, 0, 3, "_shrop" },
 
 				{{'/','='}, 0, 3, "_divop"},
 				{{'*','='}, 0, 3, "_mulop"},
@@ -1226,8 +1245,9 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 				{{'=',0  }, 0, 3, "_set" },
 				{{'%',0},   0, 0, "_mod" },
 				{{'^',0},   0, 0, "pow" },
+				{{'`',0},   0, 0, "_xor" },
 
-
+				{{'~',0  }, -1, 0, }, // -1 seems broken with gcc-ppc-linux
         {{'[',0  }, 0, 5, },
 				{{'!',0  },-1, 0, }, // this should also ignore any leading +-
 				{{'?',0  }, 1, 4, },
@@ -1296,6 +1316,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 					l_ptr = strdup(l_ptr); // doesn't need to be preprocessed since it just was
         }
 				if (preprocSymbols[n].op[1]) expression++;
+				if (preprocSymbols[n].op[2]) expression++;
 
 				r_ptr=expression;
 				{ 
@@ -1348,7 +1369,6 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 								{
 									if (*r_ptr == ':') r_qcnt--;
 									else if (*r_ptr == '?') r_qcnt++;
-
 									if (r_qcnt < 3-rscan) break;
 								}
                 else if (rscan == 5)
@@ -1390,8 +1410,15 @@ static char *preprocessCode(compileContext *ctx, char *expression)
       					buf=(char*)realloc(buf,alloc_len);
     				}
 
+	if (n == ns-4)
+	{
+		
+		len+=sprintf(buf+len,"_compl(%s",
+		  r_ptr);
 
-          if (n == ns-3)
+		ctx->l_stats[0]+=4;
+	}
+          else if (n == ns-3)
           {
             char *lp = l_ptr;
             char *rp = r_ptr;

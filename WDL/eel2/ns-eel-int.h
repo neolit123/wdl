@@ -47,6 +47,8 @@ extern "C" {
 #define FN_OR       7
 #define FN_UMINUS   8
 #define FN_UPLUS    9
+#define FN_XOR      10
+#define FN_COMPL    11
 
 #define MATH_SIMPLE 0
 #define MATH_FN     1
