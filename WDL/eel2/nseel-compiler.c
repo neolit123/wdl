@@ -1084,20 +1084,37 @@ static char *preprocessCode(compileContext *ctx, char *expression)
     
     if (expression[0] == '$')
     {
-      if (toupper(expression[1]) == 'X')
-      {
         char *p=expression+2;
-        unsigned int v=strtoul(expression+2,&p,16);
-        char tmp[64];
-        expression=p;
+      unsigned int v;
+      char tmp[128];
 
+      switch (toupper(expression[1]))
+      {
+        case 'X':
+          v = strtoul(expression+2,&p,16);
+          break;
+        case 'D':
+          v = strtoul(expression+2,&p,10);
+          break;
+        case 'O':
+          v = strtoul(expression+2,&p,8);
+          break;
+        case 'B':
+          v = strtoul(expression+2,&p,2);
+          break;
+        default:
+          goto unknown_number_repr;
+      }
+
+      expression=p;
         sprintf(tmp,"%u",v);
         memcpy(buf+len,tmp,strlen(tmp));
         len+=strlen(tmp);
         ctx->l_stats[0]+=strlen(tmp);
         continue;
 
-      }
+      unknown_number_repr:
+
       if (expression[1]=='\'' && expression[2] && expression[3]=='\'')
       {
         char tmp[64];
