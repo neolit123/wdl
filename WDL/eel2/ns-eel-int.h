@@ -1,7 +1,7 @@
 /*
   Nullsoft Expression Evaluator Library (NS-EEL)
   Copyright (C) 1999-2003 Nullsoft, Inc.
-  
+
   ns-eel-int.h: internal code definition header.
 
   This software is provided 'as-is', without any express or implied
@@ -195,6 +195,11 @@ EEL_F * NSEEL_CGEN_CALL __NSEEL_RAM_MemCpy(EEL_F ***blocks,EEL_F *dest, EEL_F *s
 #elif defined (_WIN64)
 
   // todo: AMD64 version?
+  #define EEL_F2int(x) ((int)(x))
+
+#elif defined __arm__
+
+  // todo: arm
   #define EEL_F2int(x) ((int)(x))
 
 #elif defined(_MSC_VER)

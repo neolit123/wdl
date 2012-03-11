@@ -2,7 +2,7 @@
   Expression Evaluator Library (NS-EEL) v2
   Copyright (C) 2004-2008 Cockos Incorporated
   Copyright (C) 1999-2003 Nullsoft, Inc.
-  
+
   nseel-eval.c
 
   This software is provided 'as-is', without any express or implied
@@ -33,8 +33,9 @@
 #define NSEEL_MAX_VARIABLE_NAMELEN 8
 #endif
 
-#define strnicmp(x,y,z) strncasecmp(x,y,z)
-
+#ifndef strnicmp
+  #define strnicmp(x,y,z) strncasecmp(x,y,z)
+#endif
 
 #define INTCONST 1
 #define DBLCONST 2
@@ -73,12 +74,12 @@ void NSEEL_VM_enumallvars(NSEEL_VMCTX ctx, int (*func)(const char *name, EEL_F *
     int ti;
     int namepos=0;
     for (ti = 0; ti < NSEEL_VARS_PER_BLOCK; ti ++)
-    {        
+    {
       char *p=tctx->varTable_Names[wb]+namepos;
       if (!*p) break;
 
 
-      if (!func(p,&tctx->varTable_Values[wb][ti],userctx)) 
+      if (!func(p,&tctx->varTable_Values[wb][ti],userctx))
         break;
 
       namepos += NSEEL_MAX_VARIABLE_NAMELEN;
@@ -100,7 +101,7 @@ static INT_PTR register_var(compileContext *ctx, const char *name, EEL_F **ptr)
   {
     int namepos=0;
     for (ti = 0; ti < NSEEL_VARS_PER_BLOCK; ti ++)
-    {        
+    {
       if (!ctx->varTable_Names[wb][namepos] || !strnicmp(ctx->varTable_Names[wb]+namepos,name,NSEEL_MAX_VARIABLE_NAMELEN))
       {
         break;
@@ -168,11 +169,11 @@ INT_PTR nseel_setVar(compileContext *ctx, INT_PTR varNum)
     wb=varNum/NSEEL_VARS_PER_BLOCK;
     ti=(varNum%NSEEL_VARS_PER_BLOCK);
     nameptr=ctx->varTable_Names[wb]+ti*NSEEL_MAX_VARIABLE_NAMELEN;
-    if (!nameptr[0]) 
+    if (!nameptr[0])
     {
       strncpy(nameptr,ctx->lastVar,NSEEL_MAX_VARIABLE_NAMELEN);
-    }  
-    return varNum;  
+    }
+    return varNum;
   }
 
 }
@@ -181,8 +182,8 @@ INT_PTR nseel_setVar(compileContext *ctx, INT_PTR varNum)
 INT_PTR nseel_getVar(compileContext *ctx, INT_PTR i)
 {
   if (i >= 0 && i < (NSEEL_VARS_PER_BLOCK*ctx->varTable_numBlocks))
-    return nseel_createCompiledValue(ctx,0, ctx->varTable_Values[i/NSEEL_VARS_PER_BLOCK] + i%NSEEL_VARS_PER_BLOCK); 
-  if (i >= NSEEL_GLOBALVAR_BASE && i < NSEEL_GLOBALVAR_BASE+100) 
+    return nseel_createCompiledValue(ctx,0, ctx->varTable_Values[i/NSEEL_VARS_PER_BLOCK] + i%NSEEL_VARS_PER_BLOCK);
+  if (i >= NSEEL_GLOBALVAR_BASE && i < NSEEL_GLOBALVAR_BASE+100)
     return nseel_createCompiledValue(ctx,0, nseel_globalregs+i-NSEEL_GLOBALVAR_BASE);
 
   return nseel_createCompiledValue(ctx,0, NULL);
@@ -258,7 +259,7 @@ INT_PTR nseel_lookup(compileContext *ctx, int *typeOfObject)
     {
       int namepos=0;
       for (ti = 0; ti < NSEEL_VARS_PER_BLOCK; ti ++)
-      {        
+      {
         if (!ctx->varTable_Names[wb][namepos]) break;
 
         if (!strnicmp(ctx->varTable_Names[wb]+namepos,ctx->yytext,NSEEL_MAX_VARIABLE_NAMELEN))

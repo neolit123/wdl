@@ -2,7 +2,7 @@
   Expression Evaluator Library (NS-EEL) v2
   Copyright (C) 2004-2008 Cockos Incorporated
   Copyright (C) 1999-2003 Nullsoft, Inc.
-  
+
   nseel-compiler.c
 
   This software is provided 'as-is', without any express or implied
@@ -59,7 +59,7 @@
 
 #endif
 
-#ifndef _WIN64
+#if !defined _WIN64 && !defined __arm__
 #if !defined(_RC_CHOP) && !defined(EEL_NO_CHANGE_FPFLAGS)
 
 #include <fpu_control.h>
@@ -85,8 +85,8 @@ static unsigned int _controlfp(unsigned int val, unsigned int mask)
 #ifdef __ppc__
 
 #define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8
-static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v) 
-{   
+static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v)
+{
     	unsigned int uv=(unsigned int)v;
 	unsigned short *p=(unsigned short *)b;
 
@@ -99,18 +99,18 @@ static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v)
 
 // mflr r5
 // stwu r5, -4(r1)
-const static unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFFC };
+static const unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFFC };
 
 // lwz r5, 0(r1)
 // addi r1, r1, 4
 // mtlr r5
-const static unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210004, 0x7CA803A6 };
+static const unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210004, 0x7CA803A6 };
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
 
-const static unsigned int GLUE_RET[]={0x4E800020}; // blr
+static const unsigned int GLUE_RET[]={0x4E800020}; // blr
 
-const static unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
+static const unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
 
 static int GLUE_RESET_ESI(char *out, void *ptr)
 {
@@ -122,25 +122,26 @@ static int GLUE_RESET_ESI(char *out, void *ptr)
 
 
 // stwu r3, -4(r1)
-const static unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
+static const unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
 
 // lwz r14, 0(r1)
 // addi r1, r1, 4
-const static unsigned int GLUE_POP_EBX[2]={ 0x81C10000, 0x38210004, };
+static const unsigned int GLUE_POP_EBX[2]={ 0x81C10000, 0x38210004, };
 
 // lwz r15, 0(r1)
 // addi r1, r1, 4
-const static unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
+static const unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
 
 
-static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp) 
+static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
+  /*
   __asm__(
           "stmw r14, -80(r1)\n"
           "mtctr %0\n"
-          "mr r17, %1\n" 
-	  "subi r17, r17, 8\n"
-          "mflr r5\n" 
+          "mr r17, %1\n"
+          "subi r17, r17, 8\n"
+          "mflr r5\n"
           "stw r5, -84(r1)\n"
           "subi r1, r1, 88\n"
           "bctrl\n"
@@ -149,13 +150,14 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
           "lmw r14, -80(r1)\n"
           "mtlr r5\n"
             ::"r" (cp), "r" (bp));
+  */
 };
 
 INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
 // todo 64 bit ppc will take some work
   unsigned int *p=(unsigned int *)_p;
-  while ((p[0]&0x0000FFFF) != 0x0000dead && 
+  while ((p[0]&0x0000FFFF) != 0x0000dead &&
          (p[1]&0x0000FFFF) != 0x0000beef) p++;
   p[0] = (p[0]&0xFFFF0000) | (((unsigned int)newv)>>16);
   p[1] = (p[1]&0xFFFF0000) | (((unsigned int)newv)&0xFFFF);
@@ -164,41 +166,130 @@ INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 }
 
 
+#elif defined (__arm__)
+
+//arm specific code
+
+
+#define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8
+static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v)
+{
+    	unsigned int uv=(unsigned int)v;
+	unsigned short *p=(unsigned short *)b;
+
+        *p++ = 0x3C60; // addis r3, r0, hw
+	*p++ = (uv>>16)&0xffff;
+        *p++ = 0x6063; // ori r3, r3, lw
+	*p++ = uv&0xffff;
+}
+
+
+// mflr r5
+// stwu r5, -4(r1)
+static const unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFFC };
+
+// lwz r5, 0(r1)
+// addi r1, r1, 4
+// mtlr r5
+static const unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210004, 0x7CA803A6 };
+#define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
+#define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
+
+static const unsigned int GLUE_RET[]={0x4E800020}; // blr
+
+static const unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
+
+static int GLUE_RESET_ESI(char *out, void *ptr)
+{
+  if (out) memcpy(out,&GLUE_MOV_ESI_EDI,sizeof(GLUE_MOV_ESI_EDI));
+  return sizeof(GLUE_MOV_ESI_EDI);
+
+}
+
+
+
+// stwu r3, -4(r1)
+static const unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
+
+// lwz r14, 0(r1)
+// addi r1, r1, 4
+static const unsigned int GLUE_POP_EBX[2]={ 0x81C10000, 0x38210004, };
+
+// lwz r15, 0(r1)
+// addi r1, r1, 4
+static const unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
+
+
+static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
+{
+  /*
+  __asm__(
+          "stmw r14, -80(r1)\n"
+          "mtctr %0\n"
+          "mr r17, %1\n"
+          "subi r17, r17, 8\n"
+          "mflr r5\n"
+          "stw r5, -84(r1)\n"
+          "subi r1, r1, 88\n"
+          "bctrl\n"
+          "addi r1, r1, 88\n"
+          "lwz r5, -84(r1)\n"
+          "lmw r14, -80(r1)\n"
+          "mtlr r5\n"
+            ::"r" (cp), "r" (bp));
+  */
+};
+
+INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
+{
+// todo 64 bit ppc will take some work
+  unsigned int *p=(unsigned int *)_p;
+  while ((p[0]&0x0000FFFF) != 0x0000dead &&
+         (p[1]&0x0000FFFF) != 0x0000beef) p++;
+  p[0] = (p[0]&0xFFFF0000) | (((unsigned int)newv)>>16);
+  p[1] = (p[1]&0xFFFF0000) | (((unsigned int)newv)&0xFFFF);
+
+  return (INT_PTR*)++p;
+}
+
+
+
+
 #else
 
 //x86 specific code
 
 #define GLUE_FUNC_ENTER_SIZE 0
 #define GLUE_FUNC_LEAVE_SIZE 0
-const static unsigned int GLUE_FUNC_ENTER[1];
-const static unsigned int GLUE_FUNC_LEAVE[1];
+static const unsigned int GLUE_FUNC_ENTER[1];
+static const unsigned int GLUE_FUNC_LEAVE[1];
 
 #if defined(_WIN64) || defined(__LP64__)
 #define GLUE_MOV_EAX_DIRECTVALUE_SIZE 10
-static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v) {   
+static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v) {
   unsigned short *bb = (unsigned short *)b;
-  *bb++ =0xB848; 
-  *(INT_PTR *)bb = v; 
+  *bb++ =0xB848;
+  *(INT_PTR *)bb = v;
 }
-const static unsigned char  GLUE_PUSH_EAX[2]={	   0x50,0x50}; // push rax ; push rax (push twice to preserve alignment)
-const static unsigned char  GLUE_POP_EBX[2]={0x5F, 0x5f}; //pop rdi ; twice
-const static unsigned char  GLUE_POP_ECX[2]={0x59, 0x59 }; // pop rcx ; twice
+static const unsigned char  GLUE_PUSH_EAX[2]={	   0x50,0x50}; // push rax ; push rax (push twice to preserve alignment)
+static const unsigned char  GLUE_POP_EBX[2]={0x5F, 0x5f}; //pop rdi ; twice
+static const unsigned char  GLUE_POP_ECX[2]={0x59, 0x59 }; // pop rcx ; twice
 #else
 #define GLUE_MOV_EAX_DIRECTVALUE_SIZE 5
-static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v) 
-{   
-  *((unsigned char *)b) =0xB8; 
+static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
+{
+  *((unsigned char *)b) =0xB8;
   b= ((unsigned char *)b)+1;
-  *(int *)b = v; 
+  *(int *)b = v;
 }
-const static unsigned char  GLUE_PUSH_EAX[4]={0x83, 0xEC, 12,   0x50}; // sub esp, 12, push eax
-const static unsigned char  GLUE_POP_EBX[4]={0x5F, 0x83, 0xC4, 12}; //pop ebx, add esp, 12 // DI=5F, BX=0x5B;
-const static unsigned char  GLUE_POP_ECX[4]={0x59, 0x83, 0xC4, 12}; // pop ecx, add esp, 12
+static const unsigned char  GLUE_PUSH_EAX[4]={0x83, 0xEC, 12,   0x50}; // sub esp, 12, push eax
+static const unsigned char  GLUE_POP_EBX[4]={0x5F, 0x83, 0xC4, 12}; //pop ebx, add esp, 12 // DI=5F, BX=0x5B;
+static const unsigned char  GLUE_POP_ECX[4]={0x59, 0x83, 0xC4, 12}; // pop ecx, add esp, 12
 
 #endif
 
-//const static unsigned short GLUE_MOV_ESI_EDI=0xF78B;
-const static unsigned char  GLUE_RET=0xC3;
+//static const unsigned short GLUE_MOV_ESI_EDI=0xF78B;
+static const unsigned char  GLUE_RET=0xC3;
 
 static int GLUE_RESET_ESI(unsigned char *out, void *ptr)
 {
@@ -223,22 +314,22 @@ static int GLUE_RESET_ESI(unsigned char *out, void *ptr)
 }
 
 
-static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp) 
+static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
   #if defined(_WIN64) || defined(__LP64__)
     extern void win64_callcode(INT_PTR code);
     win64_callcode(cp);
-  #else // non-64 bit
+  #else
     #ifdef _MSC_VER
       #ifndef EEL_NO_CHANGE_FPFLAGS
-        unsigned int old_v=_controlfp(0,0); 
+        unsigned int old_v=_controlfp(0,0);
         _controlfp(_RC_CHOP,_MCW_RC);
       #endif
 
       __asm
       {
         mov eax, cp
-        pushad 
+        pushad
         call eax
         popad
       };
@@ -248,7 +339,7 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
       #endif
     #else // gcc x86
       #ifndef EEL_NO_CHANGE_FPFLAGS
-        unsigned int old_v=_controlfp(0,0); 
+        unsigned int old_v=_controlfp(0,0);
         _controlfp(_RC_CHOP,_MCW_RC);
       #endif
       __asm__("call *%%eax"::"a" (cp): "%ecx","%edx","%esi","%edi");
@@ -331,7 +422,7 @@ static int findByteOffsetInSource(compileContext *ctx, int byteoffs,int *destoff
 {
 	int x;
 	if (!ctx->compileLineRecs || !ctx->compileLineRecs_size) return *destoffs=0;
-	if (byteoffs < ctx->compileLineRecs[0].destByteCount) 
+	if (byteoffs < ctx->compileLineRecs[0].destByteCount)
 	{
 		*destoffs=0;
 		return 1;
@@ -515,6 +606,8 @@ static functionType fnTable1[] = {
   { "_above",  nseel_asm_above,nseel_asm_above_end, 2, {&eel_zero, &eel_one}  },
   { "_beleq",  nseel_asm_beloweq,nseel_asm_beloweq_end, 2, {&eel_zero, &eel_one}  },
   { "_aboeq",  nseel_asm_aboveeq,nseel_asm_aboveeq_end, 2, {&eel_zero, &eel_one} },
+#elif defined __ppc__ || defined __arm__
+  //
 #else
   { "_not",   nseel_asm_bnot,nseel_asm_bnot_end,  1, {&g_closefact} } ,
   { "_equal",  nseel_asm_equal,nseel_asm_equal_end, 2, {&g_closefact} },
@@ -538,7 +631,7 @@ static functionType fnTable1[] = {
   { "_modop",nseel_asm_mod_op,nseel_asm_mod_op_end,2},
 
 
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
    { "sin",   nseel_asm_1pdd,nseel_asm_1pdd_end,   1, {&sin} },
    { "cos",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1, {&cos} },
    { "tan",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1, {&tan}  },
@@ -552,7 +645,7 @@ static functionType fnTable1[] = {
    { "atan",   nseel_asm_1pdd,nseel_asm_1pdd_end,  1, {&atan}, },
    { "atan2",  nseel_asm_2pdd,nseel_asm_2pdd_end, 2, {&atan2}, },
    { "sqr",    nseel_asm_sqr,nseel_asm_sqr_end,   1 },
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
    { "sqrt",   nseel_asm_1pdd,nseel_asm_1pdd_end,  1, {&sqrt}, },
 #else
    { "sqrt",   nseel_asm_sqrt,nseel_asm_sqrt_end,  1 },
@@ -560,7 +653,7 @@ static functionType fnTable1[] = {
    { "pow",    nseel_asm_2pdd,nseel_asm_2pdd_end,   2, {&pow}, },
    { "_powop",    nseel_asm_2pdds,nseel_asm_2pdds_end,   2, {&pow}, },
    { "exp",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1, {&exp}, },
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
    { "log",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1, {&log} },
    { "log10",  nseel_asm_1pdd,nseel_asm_1pdd_end, 1, {&log10} },
 #else
@@ -570,7 +663,7 @@ static functionType fnTable1[] = {
    { "abs",    nseel_asm_abs,nseel_asm_abs_end,   1 },
    { "min",    nseel_asm_min,nseel_asm_min_end,   2 },
    { "max",    nseel_asm_max,nseel_asm_max_end,   2 },
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
    { "sign",   nseel_asm_sign,nseel_asm_sign_end,  1, {&eel_zero}} ,
 #else
    { "sign",   nseel_asm_sign,nseel_asm_sign_end,  1, {&g_signs}} ,
@@ -583,7 +676,7 @@ static functionType fnTable1[] = {
    { "floor",  nseel_asm_1pdd,nseel_asm_1pdd_end, 1, {&floor} },
 #endif
    { "ceil",   nseel_asm_1pdd,nseel_asm_1pdd_end,  1, {&ceil} },
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
    { "invsqrt",   nseel_asm_invsqrt,nseel_asm_invsqrt_end,  1,  },
 #else
    { "invsqrt",   nseel_asm_invsqrt,nseel_asm_invsqrt_end,  1, {&negativezeropointfive, &onepointfive} },
@@ -715,7 +808,7 @@ static void *__newBlock(llBlock **start, int size)
   }
 #endif
   llb->sizeused=(size+7)&~7;
-  llb->next = *start;  
+  llb->next = *start;
   *start = llb;
   return llb->block;
 }
@@ -773,7 +866,7 @@ static void *nseel_getFunctionAddress(int fntype, int fn, int *size, NSEEL_PPPRO
 	  case MATH_FN:
       {
         functionType *p=nseel_getFunctionFromTable(fn);
-		    if (p) 
+		    if (p)
         {
           *replList=p->replptrs;
           *pProc=p->pProc;
@@ -817,7 +910,7 @@ INT_PTR nseel_createCompiledFunction3(compileContext *ctx, int fntype, INT_PTR f
     memcpy(p,&GLUE_RET,sizeof(GLUE_RET)); p+=sizeof(GLUE_RET);
 
     ctx->l_stats[2]+=sizes2+sizes3+sizeof(GLUE_RET)*2;
-    
+
     func3 = GLUE_realAddress(nseel_asm_if,nseel_asm_if_end,&size);
 
     block=(char *)newTmpBlock(sizes1+size);
@@ -844,23 +937,23 @@ INT_PTR nseel_createCompiledFunction3(compileContext *ctx, int fntype, INT_PTR f
     void *myfunc;
     NSEEL_PPPROC preProc=0;
     void **repl;
-  
+
     myfunc = nseel_getFunctionAddress(fntype, fn, &size2, &preProc,&repl);
 
     block=(unsigned char *)newTmpBlock(size2+sizes1+sizes2+sizes3+
-      sizeof(GLUE_PUSH_EAX) + 
       sizeof(GLUE_PUSH_EAX) +
-      sizeof(GLUE_POP_EBX) + 
+      sizeof(GLUE_PUSH_EAX) +
+      sizeof(GLUE_POP_EBX) +
       sizeof(GLUE_POP_ECX));
 
     outp=block+4;
-    memcpy(outp,(char*)code1+4,sizes1); 
+    memcpy(outp,(char*)code1+4,sizes1);
     outp+=sizes1;
     memcpy(outp,&GLUE_PUSH_EAX,sizeof(GLUE_PUSH_EAX)); outp+=sizeof(GLUE_PUSH_EAX);
-    memcpy(outp,(char*)code2+4,sizes2); 
+    memcpy(outp,(char*)code2+4,sizes2);
     outp+=sizes2;
     memcpy(outp,&GLUE_PUSH_EAX,sizeof(GLUE_PUSH_EAX)); outp+=sizeof(GLUE_PUSH_EAX);
-    memcpy(outp,(char*)code3+4,sizes3); 
+    memcpy(outp,(char*)code3+4,sizes3);
     outp+=sizes3;
     memcpy(outp,&GLUE_POP_EBX,sizeof(GLUE_POP_EBX)); outp+=sizeof(GLUE_POP_EBX);
     memcpy(outp,&GLUE_POP_ECX,sizeof(GLUE_POP_ECX)); outp+=sizeof(GLUE_POP_ECX);
@@ -877,7 +970,7 @@ INT_PTR nseel_createCompiledFunction3(compileContext *ctx, int fntype, INT_PTR f
 
     ctx->computTableTop++;
 
-    return ((INT_PTR)(block));  
+    return ((INT_PTR)(block));
   }
 }
 
@@ -905,7 +998,7 @@ INT_PTR nseel_createCompiledFunction2(compileContext *ctx, int fntype, INT_PTR f
     memcpy(p,&GLUE_RET,sizeof(GLUE_RET)); p+=sizeof(GLUE_RET);
 
     ctx->l_stats[2]+=sizes2+2;
-    
+
     if (fn == 1) func3 = GLUE_realAddress(nseel_asm_band,nseel_asm_band_end,&size);
     else if (fn == 3) func3 = GLUE_realAddress(nseel_asm_repeat,nseel_asm_repeat_end,&size);
     else func3 = GLUE_realAddress(nseel_asm_bor,nseel_asm_bor_end,&size);
@@ -918,7 +1011,7 @@ INT_PTR nseel_createCompiledFunction2(compileContext *ctx, int fntype, INT_PTR f
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
     ptr=EEL_GLUE_set_immediate(ptr,newblock2);
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
     if (fn!=3) // for or/and on ppc we need a one
     {
       ptr=EEL_GLUE_set_immediate(ptr,&eel_one);
@@ -938,10 +1031,10 @@ INT_PTR nseel_createCompiledFunction2(compileContext *ctx, int fntype, INT_PTR f
     block=(unsigned char *)newTmpBlock(size2+sizes1+sizes2+sizeof(GLUE_PUSH_EAX)+sizeof(GLUE_POP_EBX));
 
     outp=block+4;
-    memcpy(outp,(char*)code1+4,sizes1); 
+    memcpy(outp,(char*)code1+4,sizes1);
     outp+=sizes1;
     memcpy(outp,&GLUE_PUSH_EAX,sizeof(GLUE_PUSH_EAX)); outp+=sizeof(GLUE_PUSH_EAX);
-    memcpy(outp,(char*)code2+4,sizes2); 
+    memcpy(outp,(char*)code2+4,sizes2);
     outp+=sizes2;
     memcpy(outp,&GLUE_POP_EBX,sizeof(GLUE_POP_EBX)); outp+=sizeof(GLUE_POP_EBX);
 
@@ -970,11 +1063,11 @@ INT_PTR nseel_createCompiledFunction1(compileContext *ctx, int fntype, INT_PTR f
   char *block;
   void *myfunc;
   void *func1;
-  
+
   size =((int *)code)[0];
   func1 = (void *)(code+4);
 
- 
+
   if (fntype == MATH_FN && fn == 4) // special case: while
   {
     void *func3;
@@ -989,14 +1082,14 @@ INT_PTR nseel_createCompiledFunction1(compileContext *ctx, int fntype, INT_PTR f
     memcpy(p,&GLUE_RET,sizeof(GLUE_RET)); p+=sizeof(GLUE_RET);
 
     ctx->l_stats[2]+=size+2;
-    
+
     func3 = GLUE_realAddress(nseel_asm_repeatwhile,nseel_asm_repeatwhile_end,&size);
 
     block=(char *)newTmpBlock(size);
   	ptr = (INT_PTR *)(block+4);
     memcpy(ptr,func3,size);
-    ptr=EEL_GLUE_set_immediate(ptr,newblock2); 
-    EEL_GLUE_set_immediate(ptr,&g_closefact); 
+    ptr=EEL_GLUE_set_immediate(ptr,newblock2);
+    EEL_GLUE_set_immediate(ptr,&g_closefact);
 
     ctx->computTableTop++;
     return (INT_PTR)block;
@@ -1035,8 +1128,8 @@ static char *preprocessCode(compileContext *ctx, char *expression)
   char *buf=(char *)malloc(alloc_len);
   int semicnt=0;
   // we need to call onCompileNewLine for each new line we get
- 
-  //onCompileNewLine(ctx, 
+
+  //onCompileNewLine(ctx,
 
   while (*expression)
   {
@@ -1057,7 +1150,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
       else if (expression[1] == '*')
       {
         expression+=2;
-        while (expression[0] && (expression[0] != '*' || expression[1] != '/')) 
+        while (expression[0] && (expression[0] != '*' || expression[1] != '/'))
 	{
 		if (expression[0] == '\n') onCompileNewLine(ctx,expression+1-expression_start,len);
 		expression++;
@@ -1066,7 +1159,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 	continue;
       }
     }
-    
+
     if (expression[0] == '$')
     {
       if (toupper(expression[1]) == 'X')
@@ -1121,7 +1214,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
         ctx->l_stats[0]+=10;
 	      continue;
       }
-      
+
     }
 
     {
@@ -1157,9 +1250,9 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 			p++;
 		}
 		// fucko, we should look for even more chars, me thinks
-        if (nc && (isalnum(nc) 
+        if (nc && (isalnum(nc)
 #if 1
-				|| nc == '(' || nc == '_' || nc == '!' || nc == '$' 
+				|| nc == '(' || nc == '_' || nc == '!' || nc == '$'
 #endif
 				)) c='%';
         else c = ' '; // stray ;
@@ -1170,7 +1263,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
         int p=0;
         int nc;
         while ((nc=expression[p]) && isspace(nc)) p++;
-		if (nc == ',' || nc == ')') 
+		if (nc == ',' || nc == ')')
 		{
 			expression += p+1;
 			buf[len++]=',';
@@ -1187,7 +1280,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 			static char *symbollists[]=
 			{
 				"", // or any control char that is not parenthed
-				":(,;?%", 
+				":(,;?%",
 				",):?;", // or || or &&
 				",);", // jf> removed :? from this, for =
 				",);",
@@ -1196,12 +1289,12 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 			};
 
 
-			static struct 
+			static struct
 			{
 			  char op[2];
 			  char lscan,rscan;
 			  char *func;
-			} preprocSymbols[] = 
+			} preprocSymbols[] =
 			{
 				{{'+','='}, 0, 3, "_addop" },
 				{{'-','='}, 0, 3, "_subop" },
@@ -1239,7 +1332,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 			int ns=sizeof(preprocSymbols)/sizeof(preprocSymbols[0]);
 			for (n = 0; n < ns; n++)
 			{
-				if (c == preprocSymbols[n].op[0] && (!preprocSymbols[n].op[1] || expression[0] == preprocSymbols[n].op[1])) 
+				if (c == preprocSymbols[n].op[0] && (!preprocSymbols[n].op[1] || expression[0] == preprocSymbols[n].op[1]))
 				{
 					break;
 				}
@@ -1267,7 +1360,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 							l_semicnt--;
 							if (l_semicnt < 0) break;
 						}
-						else if (!l_semicnt) 
+						else if (!l_semicnt)
 						{
 							if (!*scan)
 							{
@@ -1298,7 +1391,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 				if (preprocSymbols[n].op[1]) expression++;
 
 				r_ptr=expression;
-				{ 
+				{
 					// scan forward to an uncommented,  unparenthed semicolon, comma, or )
 					int r_semicnt=0;
 					int r_qcnt=0;
@@ -1322,7 +1415,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 						else if (!commentstate)
 						{
 							if (*r_ptr == '(') {hashadch=1; r_semicnt++; }
-							else if (*r_ptr == ')') 
+							else if (*r_ptr == ')')
 							{
 								r_semicnt--;
 								if (r_semicnt < 0) break;
@@ -1331,13 +1424,13 @@ static char *preprocessCode(compileContext *ctx, char *expression)
 							{
 								char *sc=scan;
 								if (*r_ptr == ';' || *r_ptr == ',') break;
-							
+
 								if (!rscan)
 								{
 									if (*r_ptr == ':') break;
 									if (!isspace(*r_ptr) && !isalnum(*r_ptr) && *r_ptr != '_' && *r_ptr != '.' && hashadch) break;
 									if (isalnum(*r_ptr) || *r_ptr == '_')hashadch=1;
-								}								
+								}
 								else if (rscan == 2 &&
 									((r_ptr[0]=='|' && r_ptr[1] == '|')||
 									(r_ptr[0]=='&' && r_ptr[1] == '&')
@@ -1407,7 +1500,7 @@ static char *preprocessCode(compileContext *ctx, char *expression)
   	      len+=sprintf(buf+len,"_mem((%s)+(%s)",lp,rp);
               ctx->l_stats[0]+=strlen(lp)+strlen(rp)+8;
             }
-            else 
+            else
             {
 	      len+=sprintf(buf+len,"_mem(%s",lp);
               ctx->l_stats[0]+=strlen(lp)+4;
@@ -1531,11 +1624,11 @@ NSEEL_CODEHANDLE NSEEL_code_compile(NSEEL_VMCTX _ctx, char *_expression, int lin
 
   handle = (codeHandleType*)newBlock(sizeof(codeHandleType),8);
 
-  if (!handle) 
+  if (!handle)
   {
     return 0;
   }
-  
+
   memset(handle,0,sizeof(codeHandleType));
 
   expression_start=expression=preprocessCode(ctx,_expression);
@@ -1549,7 +1642,7 @@ NSEEL_CODEHANDLE NSEEL_code_compile(NSEEL_VMCTX _ctx, char *_expression, int lin
     ctx->colCount=0;
     ctx->computTableTop=0;
 
-    
+
     // single out segment
     while (*expression == ';' || isspace(*expression)) expression++;
     if (!*expression) break;
@@ -1559,12 +1652,12 @@ NSEEL_CODEHANDLE NSEEL_code_compile(NSEEL_VMCTX _ctx, char *_expression, int lin
     if (*expression) *expression++ = 0;
 
     // parse
-    
+
     startptr=nseel_compileExpression(ctx,expr);
 
     if (ctx->computTableTop > NSEEL_MAX_TEMPSPACE_ENTRIES- /* safety */ 16 - /* alignment */4 ||
-        !startptr) 
-    { 
+        !startptr)
+    {
       int byteoffs = expr - expression_start;
       int destoffs,linenumber;
       char buf[21], *p;
@@ -1591,8 +1684,8 @@ NSEEL_CODEHANDLE NSEEL_code_compile(NSEEL_VMCTX _ctx, char *_expression, int lin
       sprintf(ctx->last_error_string,"Around line %d '%s'",linenumber+lineoffs,buf);
 
       ctx->last_error_string[sizeof(ctx->last_error_string)-1]=0;
-      scode=NULL; 
-      break; 
+      scode=NULL;
+      break;
     }
     if (computable_size < ctx->computTableTop)
     {
@@ -1620,7 +1713,7 @@ NSEEL_CODEHANDLE NSEEL_code_compile(NSEEL_VMCTX _ctx, char *_expression, int lin
   {
     handle=NULL;              // return NULL (after resetting blocks_head)
   }
-  else 
+  else
   {
     char *tabptr = (char *)(handle->workTable=calloc(computable_size+64,  sizeof(EEL_F)));
     unsigned char *writeptr;
@@ -1646,12 +1739,12 @@ NSEEL_CODEHANDLE NSEEL_code_compile(NSEEL_VMCTX _ctx, char *_expression, int lin
       while (p)
       {
         int thissize=*(int *)p->startptr;
-        writeptr+=GLUE_RESET_ESI(writeptr,tabptr);
+        writeptr+=GLUE_RESET_ESI((char *)writeptr,tabptr);
         //memcpy(writeptr,&GLUE_MOV_ESI_EDI,sizeof(GLUE_MOV_ESI_EDI));
         //writeptr+=sizeof(GLUE_MOV_ESI_EDI);
         memcpy(writeptr,(char*)p->startptr + 4,thissize);
         writeptr += thissize;
-      
+
         p=p->next;
       }
       memcpy(writeptr,&GLUE_FUNC_LEAVE,GLUE_FUNC_LEAVE_SIZE); writeptr += GLUE_FUNC_LEAVE_SIZE;
@@ -1808,7 +1901,7 @@ void NSEEL_VM_SetCustomFuncThis(NSEEL_VMCTX ctx, void *thisptr)
 
 void NSEEL_PProc_RAM(void *data, int data_size, compileContext *ctx)
 {
-  if (data_size>0) EEL_GLUE_set_immediate(data, &ctx->ram_blocks); 
+  if (data_size>0) EEL_GLUE_set_immediate(data, &ctx->ram_blocks);
 }
 void NSEEL_PProc_THIS(void *data, int data_size, compileContext *ctx)
 {
