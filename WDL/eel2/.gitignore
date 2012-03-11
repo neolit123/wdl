@@ -1,1 +1,5 @@
 !asm-nseel-x64-macho.o
+_backup.cmd
+*.obj
+*.o
+test.arm
