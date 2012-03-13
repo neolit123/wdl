@@ -1,0 +1,52 @@
+CC = arm-elf-gcc
+CXX = $(CC)
+RUN = arm-elf-run
+OUT = test.arm
+
+CFLAGS = -Wall -W -Wno-missing-field-initializers -Wno-unused -Wno-sign-compare
+LFLAGS = -lm
+
+vpath %.c %.cpp %.h
+
+HEADERS = ns-eel-addfuncs.h ns-eel-int.h ns-eel.h
+OBJS = nseel-caltab.o nseel-cfunc.o nseel-compiler.o nseel-eval.o \
+nseel-lextab.o nseel-ram.o nseel-yylex.o test.o
+
+default: $(OUT)
+
+nseel-caltab.o: nseel-caltab.c $(HEADERS)
+	$(CC) -c nseel-caltab.c $(CFLAGS)
+
+nseel-cfunc.o: nseel-cfunc.c $(HEADERS)
+	$(CC) -c nseel-cfunc.c $(CFLAGS)
+
+nseel-compiler.o: nseel-compiler.c $(HEADERS)
+	$(CC) -c nseel-compiler.c $(CFLAGS)
+
+nseel-eval.o: nseel-eval.c $(HEADERS)
+	$(CC) -c nseel-eval.c $(CFLAGS)
+
+nseel-lextab.o: nseel-lextab.c $(HEADERS)
+	$(CC) -c nseel-lextab.c $(CFLAGS)
+
+nseel-ram.o: nseel-ram.c $(HEADERS)
+	$(CC) -c nseel-ram.c $(CFLAGS)
+
+nseel-yylex.o:nseel-yylex.c $(HEADERS)
+	$(CC) -c nseel-yylex.c $(CFLAGS)
+
+test.o:test.cpp $(HEADERS)
+	$(CC) -c test.cpp $(CFLAGS)
+
+$(OUT): $(OBJS)
+	$(CC) -o $(OUT) $(OBJS) $(LFLAGS)
+	@echo [*] all done
+
+run:
+	$(RUN) $(OUT)
+
+clean:
+	rm -f $(OBJS) $(OUT)
+
+%.o: %.c %.cpp
+	$(CC) -c -o $@ $^ $(CFLAGS)

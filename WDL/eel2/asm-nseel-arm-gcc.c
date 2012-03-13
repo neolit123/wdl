@@ -55,7 +55,7 @@ void nseel_asm_invsqrt_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_sqr(void)
 {
-
+  
 }
 void nseel_asm_sqr_end(void) {}
 
