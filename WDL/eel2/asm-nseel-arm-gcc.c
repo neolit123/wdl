@@ -55,6 +55,13 @@ void nseel_asm_invsqrt_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_sqr(void)
 {
+  /*    
+    soft-float calls for 2x 64bit doubles are made using r0,r1,r2,r3    
+    return is r0, r1
+    
+    find how doubles are packed. big endian = blah    
+  */
+
   __asm__
   (
     //"stmfd sp!, {r0-r12, lr}\n"
@@ -80,11 +87,13 @@ void nseel_asm_abs_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_assign(void)
 {
-  //printf("hello\n");
+  char str[] = "nseel_asm_assign\0"; // should be on the stack
   __asm__
   (
-    //"mov r0, #1\n"
+    "ldr r0, [%0]\n"
+    "bl puts\n"
     "mov pc, lr\n"
+    :: "g" (str)
   );
 }
 void nseel_asm_assign_end(void) {}
