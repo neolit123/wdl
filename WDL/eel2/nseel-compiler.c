@@ -135,7 +135,6 @@ static const unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
-  /*
   __asm__(
           "stmw r14, -80(r1)\n"
           "mtctr %0\n"
@@ -150,13 +149,13 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
           "lmw r14, -80(r1)\n"
           "mtlr r5\n"
             ::"r" (cp), "r" (bp));
-  */
 };
 
 INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
 // todo 64 bit ppc will take some work
   unsigned int *p=(unsigned int *)_p;
+ 
   while ((p[0]&0x0000FFFF) != 0x0000dead &&
          (p[1]&0x0000FFFF) != 0x0000beef) p++;
   p[0] = (p[0]&0xFFFF0000) | (((unsigned int)newv)>>16);
@@ -166,7 +165,9 @@ INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 }
 
 
-#elif defined (__arm__)
+#elif defined __arm__
+
+#define ARM_NOP   0xE1A01001 // mov r1, r1
 
 //arm specific code
 
@@ -176,31 +177,42 @@ static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v)
 {
     	unsigned int uv=(unsigned int)v;
 	unsigned short *p=(unsigned short *)b;
+  /*
 
         *p++ = 0x3C60; // addis r3, r0, hw
 	*p++ = (uv>>16)&0xffff;
         *p++ = 0x6063; // ori r3, r3, lw
 	*p++ = uv&0xffff;
+	*/  
 }
 
 
 // mflr r5
 // stwu r5, -4(r1)
-static const unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFFC };
+//static const unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFFC };
+
+// mov r1, r1 = nop = ARM_NOP
+static const unsigned int GLUE_FUNC_ENTER[2] = { ARM_NOP, ARM_NOP };
 
 // lwz r5, 0(r1)
 // addi r1, r1, 4
 // mtlr r5
-static const unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210004, 0x7CA803A6 };
+// static const unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210004, 0x7CA803A6 };
+
+static const unsigned int GLUE_FUNC_LEAVE[3] = { ARM_NOP, ARM_NOP, ARM_NOP };
+
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
 
-static const unsigned int GLUE_RET[]={0x4E800020}; // blr
+// static const unsigned int GLUE_RET[]={0x4E800020}; // blr
+// static const unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
+static const unsigned int GLUE_RET[]={ARM_NOP};
+static const unsigned int GLUE_MOV_ESI_EDI=ARM_NOP;
 
-static const unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
 
 static int GLUE_RESET_ESI(char *out, void *ptr)
 {
+  printf("GLUE_RESET_ESI: %s, %p", out, ptr);
   if (out) memcpy(out,&GLUE_MOV_ESI_EDI,sizeof(GLUE_MOV_ESI_EDI));
   return sizeof(GLUE_MOV_ESI_EDI);
 
@@ -209,51 +221,40 @@ static int GLUE_RESET_ESI(char *out, void *ptr)
 
 
 // stwu r3, -4(r1)
-static const unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
+// static const unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
+static const unsigned int GLUE_PUSH_EAX[1]={ ARM_NOP};
 
 // lwz r14, 0(r1)
 // addi r1, r1, 4
-static const unsigned int GLUE_POP_EBX[2]={ 0x81C10000, 0x38210004, };
+// static const unsigned int GLUE_POP_EBX[2]={ 0x81C10000, 0x38210004, };
+static const unsigned int GLUE_POP_EBX[2]={ ARM_NOP, ARM_NOP };
 
 // lwz r15, 0(r1)
 // addi r1, r1, 4
-static const unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
+// static const unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
+static const unsigned int GLUE_POP_ECX[2]={ ARM_NOP, ARM_NOP };
 
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
-  /*
-  __asm__(
-          "stmw r14, -80(r1)\n"
-          "mtctr %0\n"
-          "mr r17, %1\n"
-          "subi r17, r17, 8\n"
-          "mflr r5\n"
-          "stw r5, -84(r1)\n"
-          "subi r1, r1, 88\n"
-          "bctrl\n"
-          "addi r1, r1, 88\n"
-          "lwz r5, -84(r1)\n"
-          "lmw r14, -80(r1)\n"
-          "mtlr r5\n"
-            ::"r" (cp), "r" (bp));
-  */
+  __asm__
+  (
+    "mov r0, %0\n"
+    "stmfd sp!, {r0-r12, lr}\n"
+    "bx r0\n"
+    "ldmfd sp!, {r0-r12, pc}\n"
+    :: "r" (cp)
+  );
 };
 
+// ??
 INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
-// todo 64 bit ppc will take some work
-  unsigned int *p=(unsigned int *)_p;
-  while ((p[0]&0x0000FFFF) != 0x0000dead &&
-         (p[1]&0x0000FFFF) != 0x0000beef) p++;
-  p[0] = (p[0]&0xFFFF0000) | (((unsigned int)newv)>>16);
-  p[1] = (p[1]&0xFFFF0000) | (((unsigned int)newv)&0xFFFF);
-
-  return (INT_PTR*)++p;
+  char *p=(char*)_p;
+  while (*(INT_PTR *)p != ~(INT_PTR)0) p++;
+  *(INT_PTR *)p = (INT_PTR)newv;
+  return ((INT_PTR*)p)+1;
 }
-
-
-
 
 #else
 
@@ -663,7 +664,7 @@ static functionType fnTable1[] = {
    { "abs",    nseel_asm_abs,nseel_asm_abs_end,   1 },
    { "min",    nseel_asm_min,nseel_asm_min_end,   2 },
    { "max",    nseel_asm_max,nseel_asm_max_end,   2 },
-#if defined __ppc__ || defined __arm__
+#if defined __ppc__  || defined __arm__
    { "sign",   nseel_asm_sign,nseel_asm_sign_end,  1, {&eel_zero}} ,
 #else
    { "sign",   nseel_asm_sign,nseel_asm_sign_end,  1, {&g_signs}} ,
@@ -1011,7 +1012,7 @@ INT_PTR nseel_createCompiledFunction2(compileContext *ctx, int fntype, INT_PTR f
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
     ptr=EEL_GLUE_set_immediate(ptr,newblock2);
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
-#if defined __ppc__ || defined __arm__
+#if defined __ppc__ || defined __arm__ // arm ?
     if (fn!=3) // for or/and on ppc we need a one
     {
       ptr=EEL_GLUE_set_immediate(ptr,&eel_one);

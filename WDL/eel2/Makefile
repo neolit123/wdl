@@ -1,6 +1,9 @@
+# makefile for eel2-arm
+
 CC = arm-elf-gcc
 CXX = $(CC)
 RUN = arm-elf-run
+DUMP = arm-elf-objdump
 OUT = test.arm
 
 CFLAGS = -Wall -W -Wno-missing-field-initializers -Wno-unused -Wno-sign-compare
@@ -17,7 +20,7 @@ default: $(OUT)
 nseel-caltab.o: nseel-caltab.c $(HEADERS)
 	$(CC) -c nseel-caltab.c $(CFLAGS)
 
-nseel-cfunc.o: nseel-cfunc.c $(HEADERS)
+nseel-cfunc.o: nseel-cfunc.c asm-nseel-arm-gcc.c $(HEADERS)
 	$(CC) -c nseel-cfunc.c $(CFLAGS)
 
 nseel-compiler.o: nseel-compiler.c $(HEADERS)
@@ -44,6 +47,10 @@ $(OUT): $(OBJS)
 
 run:
 	$(RUN) $(OUT)
+
+dump:
+	$(DUMP) -d $(OUT) > objdump.txt
+	@echo [*] saved to objdump.txt
 
 clean:
 	rm -f $(OBJS) $(OUT)
