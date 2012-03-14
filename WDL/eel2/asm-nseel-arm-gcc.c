@@ -57,13 +57,12 @@ void nseel_asm_sqr(void)
 {
   __asm__
   (
-    "stmfd sp!, {r0-r12, lr}\n"
-    "mov r0, r3\n"
+    // "stmfd sp!, {r0-r12, lr}\n"
     "bl __floatunsidf\n"
     "mov r3, r1\n"
     "mov r2, r0\n"
-    "bl __muldf3\n"  
-    "ldmfd sp!, {r0-r12, pc}\n"
+    "bl __muldf3\n"
+    // "ldmfd sp!, {r0-r12, pc}\n"
   );
 }
 void nseel_asm_sqr_end(void) {}
@@ -80,7 +79,12 @@ void nseel_asm_abs_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_assign(void)
 {
-
+  __asm__
+  (
+    // "stmfd sp!, {r0-r12, lr}\n"
+    "bl __floatunsidf\n"
+    // "ldmfd sp!, {r0-r12, pc}\n"
+  );
 }
 void nseel_asm_assign_end(void) {}
 

@@ -167,25 +167,14 @@ INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 
 #elif defined __arm__
 
+//arm specific code
 #define ARM_NOP   0xE1A01001 // mov r1, r1
 
-//arm specific code
-
-
-#define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8
-static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, INT_PTR v)
+#define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8 // ?
+static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
 {
-    	unsigned int uv=(unsigned int)v;
-	unsigned short *p=(unsigned short *)b;
-  /*
-
-        *p++ = 0x3C60; // addis r3, r0, hw
-	*p++ = (uv>>16)&0xffff;
-        *p++ = 0x6063; // ori r3, r3, lw
-	*p++ = uv&0xffff;
-	*/  
+    
 }
-
 
 // mflr r5
 // stwu r5, -4(r1)
@@ -205,9 +194,9 @@ static const unsigned int GLUE_FUNC_LEAVE[3] = { ARM_NOP, ARM_NOP, ARM_NOP };
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
 
 // static const unsigned int GLUE_RET[]={0x4E800020}; // blr
-// static const unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
 static const unsigned int GLUE_RET[]={ARM_NOP};
-static const unsigned int GLUE_MOV_ESI_EDI=ARM_NOP;
+// static const unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
+static const unsigned int GLUE_MOV_ESI_EDI = 0xe1a08009; // mov r8, r9
 
 
 static int GLUE_RESET_ESI(char *out, void *ptr)
@@ -215,10 +204,7 @@ static int GLUE_RESET_ESI(char *out, void *ptr)
   printf("GLUE_RESET_ESI: %s, %p", out, ptr);
   if (out) memcpy(out,&GLUE_MOV_ESI_EDI,sizeof(GLUE_MOV_ESI_EDI));
   return sizeof(GLUE_MOV_ESI_EDI);
-
 }
-
-
 
 // stwu r3, -4(r1)
 // static const unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
@@ -240,10 +226,11 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
   __asm__
   (
     "mov r0, %0\n"
+    "mov r9, %1\n"
     "stmfd sp!, {r0-r12, lr}\n"
     "bx r0\n"
     "ldmfd sp!, {r0-r12, pc}\n"
-    :: "r" (cp)
+    :: "r" (cp), "r" (bp)
   );
 };
 
