@@ -171,7 +171,7 @@ INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 
 #define ARM_NOP   0xe1A01001 // mov r1, r1 = NOP
 
-#define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8 // LII: should 8 bytes 
+#define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8 // LII: should be 8 bytes 
 static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
 {
   /*
@@ -194,24 +194,26 @@ static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
   *(int *)b = v;
 }
 
+// LII: "destroying" the stack frame should be done in a different way on ARM
+
 // mflr r5
 // stwu r5, -4(r1)
 //static const unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFFC };
 
 // mov r5, lr
-// str r5, [r1, #-4]
-// sub r1, r1, #4
-static const unsigned int GLUE_FUNC_ENTER[3] = { 0xe1a0500e, 0xe5015004, 0xe2411004 };
+// str r5, [sp, #-4]
+// sub sp, sp, #4
+static const unsigned int GLUE_FUNC_ENTER[3] = { 0xe1a0500e, 0xe50d5004, 0xe24dd004 };
 
 // lwz r5, 0(r1)
 // addi r1, r1, 4
 // mtlr r5
 // static const unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210004, 0x7CA803A6 };
 
-// ldr r5, [r1]
-// add r1, r1, #4
+// ldr r5, [sp]
+// add sp, sp, #4
 // mov lr, r5
-static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe5915000, 0xe2811004, 0xe1a0e005 };
+static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe59d5000, 0xe28dd004, 0xe1a0e005 };
 
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
@@ -235,9 +237,9 @@ static int GLUE_RESET_ESI(char *out, void *ptr)
 // stwu r3, -4(r1)
 // static const unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
 
-// str r3, [r1, #-4]
-// sub r1, r1, #4
-static const unsigned int GLUE_PUSH_EAX[2] = { 0xe5013004, 0xe2411004 };
+// str r3, [sp, #-4]
+// add sp, sp, #4
+static const unsigned int GLUE_PUSH_EAX[2] = { 0xe5013004, 0xe28dd004 };
 
 // lwz r14, 0(r1)
 // addi r1, r1, 4
@@ -245,17 +247,17 @@ static const unsigned int GLUE_PUSH_EAX[2] = { 0xe5013004, 0xe2411004 };
 
 // LII: which registers to use here (r6, r7).. ?
 
-// ldr r6, [r1]
-// add r1, r1, #4
-static const unsigned int GLUE_POP_EBX[2] = { 0xe5916000, 0xe2811004 };
+// ldr r6, [sp]
+// add sp, sp, #4
+static const unsigned int GLUE_POP_EBX[2] = { 0xe59d6000, 0xe28dd004 };
 
 // lwz r15, 0(r1)
-// addi r1, r1, 4
+// add sp, sp, #4
 // static const unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
 
 // ldr r7, [r1]
-// add r1, r1, #4
-static const unsigned int GLUE_POP_ECX[2] = { 0xe5917000, 0xe2411004 };
+// add sp, sp, #4
+static const unsigned int GLUE_POP_ECX[2] = { 0xe59d7000, 0xe28dd004 };
 
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
