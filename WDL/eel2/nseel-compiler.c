@@ -168,7 +168,8 @@ INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 #elif defined __arm__
 
 //arm specific code
-#define ARM_NOP   0xE1A01001 // mov r1, r1
+
+#define ARM_NOP   0xE1A01001 // mov r1, r1 = NOP
 
 #define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8 // ?
 static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
@@ -201,7 +202,7 @@ static const unsigned int GLUE_MOV_ESI_EDI = 0xe1a08009; // mov r8, r9
 
 static int GLUE_RESET_ESI(char *out, void *ptr)
 {
-  printf("GLUE_RESET_ESI: %s, %p", out, ptr);
+  printf("GLUE_RESET_ESI: %p, %p\n", out, ptr);
   if (out) memcpy(out,&GLUE_MOV_ESI_EDI,sizeof(GLUE_MOV_ESI_EDI));
   return sizeof(GLUE_MOV_ESI_EDI);
 }
@@ -223,12 +224,13 @@ static const unsigned int GLUE_POP_ECX[2]={ ARM_NOP, ARM_NOP };
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
+  printf("GLUE_CALL_CODE: %p, %p\n", bp,  cp);
   __asm__
   (
-    "mov r0, %0\n"
     "mov r9, %1\n"
     "stmfd sp!, {r0-r12, lr}\n"
-    "bx r0\n"
+    "mov lr, pc\n"
+    "mov pc, %0\n"
     "ldmfd sp!, {r0-r12, pc}\n"
     :: "r" (cp), "r" (bp)
   );
@@ -237,10 +239,12 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 // ??
 INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
+  /*
   char *p=(char*)_p;
   while (*(INT_PTR *)p != ~(INT_PTR)0) p++;
-  *(INT_PTR *)p = (INT_PTR)newv;
+  *(INT_PTR *)p = (INT_PTR)newv;    
   return ((INT_PTR*)p)+1;
+  */ 
 }
 
 #else

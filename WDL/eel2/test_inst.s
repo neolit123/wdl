@@ -1,7 +1,6 @@
 /*
 
-  arm-elf-gcc test_inst.s -s && arm-elf-objdump -d a.out > objdump.txt
-  psdpad objdump.txt
+  arm-elf-gcc test_inst.s -s && arm-elf-objdump -d a.out > objdump.txt  
 
   addr at:
     ~ 8210: 0x..........
