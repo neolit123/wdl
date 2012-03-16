@@ -213,7 +213,9 @@ static const unsigned int GLUE_FUNC_ENTER[3] = { 0xe1a0500e, 0xe50d5004, 0xe24dd
 // ldr r5, [sp]
 // add sp, sp, #4
 // mov lr, r5
-static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe59d5000, 0xe28dd004, 0xe1a0e005 };
+
+//0xe1a0e005
+static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe59d5000, 0xe28dd004, ARM_NOP };
 
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
@@ -255,23 +257,35 @@ static const unsigned int GLUE_POP_EBX[2] = { 0xe59d6000, 0xe28dd004 };
 // add sp, sp, #4
 // static const unsigned int GLUE_POP_ECX[2]={ 0x81E10000, 0x38210004 };
 
-// ldr r7, [r1]
+// ldr r7, [sp]
 // add sp, sp, #4
 static const unsigned int GLUE_POP_ECX[2] = { 0xe59d7000, 0xe28dd004 };
 
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
-  printf("GLUE_CALL_CODE: %p, %p\n", (void *)bp,  (void *)cp);
-  __asm__
+  // printf("GLUE_CALL_CODE: %p, %p\n", (void *)bp,  (void *)cp);
+  
+  __asm__ volatile
   (
     "mov r9, %1\n"
-    "stmfd sp!, {r0-r12, lr}\n"
+    "sub r9, r9, #8\n"
     "mov lr, pc\n"
     "mov pc, %0\n"
-    "ldmfd sp!, {r0-r12, pc}\n"
     :: "r" (cp), "r" (bp)
   );
+  
+  /*
+  __asm__
+  (    
+    "ldr r9, [%1]\n"
+    "stmfd sp!, {r0-r8, lr}\n"
+    "mov lr, pc\n"
+    "ldr pc, [%0]\n"
+    "ldmfd sp!, {r0-r8, pc}\n"
+    :: "r" (cp), "r" (bp)    
+  );
+  */
 };
 
 // LII: no idea what this does atm. endian ?
@@ -1813,7 +1827,7 @@ void NSEEL_code_execute(NSEEL_CODEHANDLE code)
   if (!h || !h->code) return;
 
   codeptr = (INT_PTR) h->code;
-#if 0
+#if 1
   {
 	unsigned int *p=(unsigned int *)codeptr;
 	while (*p != GLUE_RET[0])

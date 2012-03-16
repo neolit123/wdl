@@ -62,6 +62,7 @@ void nseel_asm_sqr(void)
     find how doubles are packed. big endian = blah    
   */
 
+  /*
   __asm__
   (
     //"stmfd sp!, {r0-r12, lr}\n"
@@ -72,6 +73,7 @@ void nseel_asm_sqr(void)
     "mov pc, lr\n"
     //"ldmfd sp!, {r0-r12, pc}\n"
   );
+  */
 }
 void nseel_asm_sqr_end(void) {}
 
@@ -87,13 +89,11 @@ void nseel_asm_abs_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_assign(void)
 {
-  char str[] = "nseel_asm_assign\0"; // should be on the stack
-  __asm__
+  __asm__ volatile
   (
-    "ldr r0, [%0]\n"
-    "bl puts\n"
+    "mov r0, r3\n"
+    "str r3, [r8, #8]\n"
     "mov pc, lr\n"
-    :: "g" (str)
   );
 }
 void nseel_asm_assign_end(void) {}
