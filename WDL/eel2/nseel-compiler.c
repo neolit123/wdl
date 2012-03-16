@@ -169,7 +169,7 @@ INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 
 //arm specific code
 
-#define ARM_NOP   0xe1A01001 // mov r1, r1 = NOP
+#define ARM_NOP   0xe1a00000 // mov r0, r0 = NOP
 
 #define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8 // LII: should be 8 bytes 
 static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
@@ -1832,7 +1832,11 @@ void NSEEL_code_execute(NSEEL_CODEHANDLE code)
 	unsigned int *p=(unsigned int *)codeptr;
 	while (*p != GLUE_RET[0])
 	{
+    #ifdef __arm__
+    printf("instr:%08x\n",*p);
+    #else
 		printf("instr:%04X:%04X\n",*p>>16,*p&0xffff);
+    #endif
 		p++;
 	}
   }
