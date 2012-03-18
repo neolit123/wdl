@@ -1,3 +1,11 @@
+/*    
+  soft-float calls for 2x 64bit doubles are made using r0,r1,r2,r3    
+  return is r0, r1
+  
+  find how doubles are packed. big endian = blah    
+*/
+
+
 #define NSEEL_NAKED __attribute__ ((naked))
 
 // 64bit ?
@@ -55,18 +63,11 @@ void nseel_asm_invsqrt_end(void) {}
 void nseel_asm_sqr(void) NSEEL_NAKED;
 void nseel_asm_sqr(void)
 {
-  /*    
-    soft-float calls for 2x 64bit doubles are made using r0,r1,r2,r3    
-    return is r0, r1
-    
-    find how doubles are packed. big endian = blah    
-  */
-
   __asm__
   (
     ".word 0xbbbbbbbb\n"
-    "mov r0, r3\n"
-    "str r3, [r8, #8]\n"
+    "str r0, [r8, #8]\n"
+    "mov r0, r8\n"
     "mov pc, lr\n"
   );
 }
@@ -93,7 +94,8 @@ void nseel_asm_assign(void)
   __asm__
   (
     ".word 0x11111111\n"
-    "str r0, [r8, #8]\n"
+    "mov r0, #1\n"
+    "str r0, [r6, #8]\n"
     "mov pc, lr\n"
   );
 }

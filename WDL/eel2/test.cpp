@@ -32,7 +32,7 @@ int main()
 
   printf("compile\n");
   char buf[1024];
-  strncpy(buf,"ret = ret;",sizeof(buf));
+  strncpy(buf,"ret = sqr(ret);",sizeof(buf));
   
   
   // note that you shouldnt pass a readonly string directly, since it may need to 

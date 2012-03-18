@@ -268,14 +268,37 @@ static const unsigned int GLUE_POP_ECX[2] = { 0xe59d7000, 0xe28dd004 };
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
+  /*
+  __asm__(
+          "stmw r14, -80(r1)\n"
+          "mtctr %0\n"
+          "mr r17, %1\n"
+          "subi r17, r17, 8\n"
+          "mflr r5\n"
+          "stw r5, -84(r1)\n"
+          "subi r1, r1, 88\n"
+          "bctrl\n"
+          "addi r1, r1, 88\n"
+          "lwz r5, -84(r1)\n"
+          "lmw r14, -80(r1)\n"
+          "mtlr r5\n"
+            ::"r" (cp), "r" (bp));
+  */
+
   __asm__
   (
-    "stmfd sp!, {r0-r12, lr}\n"
+    "stmfd sp!, {r0-r12, lr}\n"    
+    "mov r4, %0\n"
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
-    "mov lr, pc\n"
-    "mov pc, %0\n"
-    "ldmfd sp, {r0-r12, pc}\n"
+    "mov r5, lr\n"
+    "str r5, [sp, #-84]\n"
+    "sub sp, sp, #88\n"
+    "mov pc, r4\n"
+    "add sp, sp, #88\n"
+    "ldr r5, [sp, #-84]\n"    
+    "ldmfd sp, {r0-r12, pc}\n"    
+    "mov lr, r5\n"
     :: "r" (cp), "r" (bp)
   );
 };
