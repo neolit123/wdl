@@ -6,8 +6,8 @@ RUN = arm-elf-run
 DUMP = arm-elf-objdump
 OUT = test.arm
 
-CFLAGS = -Wall -W -Wno-missing-field-initializers -Wno-unused \
--Wno-sign-compare -g
+CFLAGS = -Wall -Wno-missing-field-initializers -Wno-unused \
+-Wno-sign-compare -Wno-cast-qual -g
 LFLAGS = -lm
 
 vpath %.c %.cpp %.h

@@ -214,8 +214,8 @@ static const unsigned int GLUE_FUNC_ENTER[3] = { 0xe1a0500e, 0xe50d5004, 0xe24dd
 // add sp, sp, #4
 // mov lr, r5
 
-//0xe1a0e005
-static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe59d5000, 0xe28dd004, ARM_NOP };
+// 0xe1a0e005
+static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe59d5000, 0xe28dd004, 0xe1a0e005 };
 
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
@@ -264,14 +264,17 @@ static const unsigned int GLUE_POP_ECX[2] = { 0xe59d7000, 0xe28dd004 };
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
-  // printf("GLUE_CALL_CODE: %p, %p\n", (void *)bp,  (void *)cp);
+  printf("GLUE_CALL_CODE: %p, %p\n", (void *)bp,  (void *)cp);
   
-  __asm__ volatile
+  __asm__
   (
+    //"stmfd sp!, {r0-r8, lr}\n"
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
     "mov lr, pc\n"
+    "mov r4, pc\n"
     "mov pc, %0\n"
+    //"ldmfd sp, {r0-r8, pc}\n"
     :: "r" (cp), "r" (bp)
   );
   
@@ -1055,7 +1058,7 @@ INT_PTR nseel_createCompiledFunction2(compileContext *ctx, int fntype, INT_PTR f
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
     ptr=EEL_GLUE_set_immediate(ptr,newblock2);
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
-#if defined __ppc__ || defined __arm__ // arm ?
+#if defined __ppc__ // arm ?
     if (fn!=3) // for or/and on ppc we need a one
     {
       ptr=EEL_GLUE_set_immediate(ptr,&eel_one);
@@ -1833,7 +1836,7 @@ void NSEEL_code_execute(NSEEL_CODEHANDLE code)
 	while (*p != GLUE_RET[0])
 	{
     #ifdef __arm__
-    printf("instr:%08x\n",*p);
+    printf("%08x\n",*p);
     #else
 		printf("instr:%04X:%04X\n",*p>>16,*p&0xffff);
     #endif

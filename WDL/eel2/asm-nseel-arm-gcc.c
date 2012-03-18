@@ -1,5 +1,6 @@
-// 64bit ?
+#define NSEEL_NAKED __attribute__ ((naked))
 
+// 64bit ?
 void nseel_asm_1pdd(void)
 {
 
@@ -50,9 +51,12 @@ void nseel_asm_invsqrt(void)
 }
 void nseel_asm_invsqrt_end(void) {}
 
-
+void test(void)
+{
+}
 
 //---------------------------------------------------------------------------------------------------------------
+void nseel_asm_sqr(void) NSEEL_NAKED;
 void nseel_asm_sqr(void)
 {
   /*    
@@ -62,18 +66,13 @@ void nseel_asm_sqr(void)
     find how doubles are packed. big endian = blah    
   */
 
-  /*
   __asm__
   (
-    //"stmfd sp!, {r0-r12, lr}\n"
-    "bl __floatunsidf\n"
-    "mov r3, r1\n"
-    "mov r2, r0\n"
-    "bl __muldf3\n"
+    ".word 0xbbbbbbbb\n"
+    "mov r0, r3\n"
+    "str r3, [r8, #8]\n"
     "mov pc, lr\n"
-    //"ldmfd sp!, {r0-r12, pc}\n"
   );
-  */
 }
 void nseel_asm_sqr_end(void) {}
 
@@ -87,12 +86,14 @@ void nseel_asm_abs_end(void) {}
 
 
 //---------------------------------------------------------------------------------------------------------------
+void nseel_asm_assign(void) NSEEL_NAKED;
 void nseel_asm_assign(void)
 {
-  __asm__ volatile
+  __asm__
   (
+    ".word 0xaaaaaaaa\n"    
     "mov r0, r3\n"
-    "str r3, [r8, #8]\n"
+    "str r3, [r8, #8]\n"    
     "mov pc, lr\n"
   );
 }
@@ -154,7 +155,13 @@ void nseel_asm_div_op_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_mod(void)
 {
-
+  __asm__
+  (    
+    ".word 0xa\n"
+    "mov r0, r3\n"
+    "str r3, [r8, #8]\n"
+    "mov pc, lr\n"
+  );
 }
 void nseel_asm_mod_end(void) {}
 
