@@ -66,8 +66,8 @@ void nseel_asm_sqr(void)
   __asm__
   (
     ".word 0xbbbbbbbb\n"
-    "str r0, [r8, #8]\n"
-    "mov r0, r8\n"
+    // "str r0, [r8, #8]\n"
+    // "mov r0, r8\n"
     "mov pc, lr\n"
   );
 }
@@ -93,9 +93,9 @@ void nseel_asm_assign(void)
 {
   __asm__
   (
-    ".word 0x11111111\n"
-    "mov r0, #1\n"
-    "str r0, [r6, #8]\n"
+    ".word 0xe51f0004\n"
+    ".word 0x40000000\n"
+    "str r0, [r6, #0]\n"
     "mov pc, lr\n"
   );
 }

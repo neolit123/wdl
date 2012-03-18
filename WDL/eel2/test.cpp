@@ -28,7 +28,7 @@ int main()
   printf("reg\n");
   double *var_ret = NSEEL_VM_regvar(vm,"ret");
 
-  if (var_ret) *var_ret=2.0;
+  if (var_ret) *var_ret=0.0;
 
   printf("compile\n");
   char buf[1024];

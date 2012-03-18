@@ -1842,7 +1842,7 @@ void NSEEL_code_execute(NSEEL_CODEHANDLE code)
   if (!h || !h->code) return;
 
   codeptr = (INT_PTR) h->code;
-#if 1
+#if 0
   {
 	unsigned int *p=(unsigned int *)codeptr;
 	while (*p != GLUE_RET[0])
