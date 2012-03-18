@@ -253,12 +253,15 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 // LII: no idea what this does atm. endian ?
 INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
-  printf("EEL_GLUE_set_immediate: %p, %p\n", (void *)_p, (void *)newv);
-  char *p=(char*)_p;
-  while (*(INT_PTR *)p != ~(INT_PTR)0) p++;
-  *(INT_PTR *)p = (INT_PTR)newv;    
-  return ((INT_PTR*)p)+1;
-  return ((INT_PTR*)_p);
+// todo 64 bit ppc will take some work
+  unsigned int *p=(unsigned int *)_p;
+ 
+  while ((p[0]&0x0000FFFF) != 0x0000dead &&
+         (p[1]&0x0000FFFF) != 0x0000beef) p++;
+  p[0] = (p[0]&0xFFFF0000) | (((unsigned int)newv)>>16);
+  p[1] = (p[1]&0xFFFF0000) | (((unsigned int)newv)&0xFFFF);
+
+  return (INT_PTR*)++p;
 }
 
 #else
@@ -1017,7 +1020,7 @@ INT_PTR nseel_createCompiledFunction2(compileContext *ctx, int fntype, INT_PTR f
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
     ptr=EEL_GLUE_set_immediate(ptr,newblock2);
     if (fn!=3) ptr=EEL_GLUE_set_immediate(ptr,&g_closefact); // for or/and
-#if defined __ppc__ // arm ?
+#if defined __ppc__ && defined __arm__ // arm ?
     if (fn!=3) // for or/and on ppc we need a one
     {
       ptr=EEL_GLUE_set_immediate(ptr,&eel_one);

@@ -1,18 +1,86 @@
-/*    
-  soft-float calls for 2x 64bit doubles are made using r0,r1,r2,r3    
+/*
+  soft-float calls for 2x 64bit doubles are made using r0,r1,r2,r3
   return is r0, r1
-  
-  find how doubles are packed. big endian = blah    
+
+  find how doubles are packed. big endian = blah
 */
 
 
 #define NSEEL_NAKED __attribute__ ((naked))
 
-// 64bit ?
+/*
+for some reason this doesn't always work:
+  ldr rR, =some_uint
+
+so to load a large value (32bit) into register R, we do:
+
+    e59fR008 	ldr	rR, [pc, #8]
+    e59fR004 	ldr	rR, [pc, #4]
+    e51fR000 	ldr	rR, [pc, #0]
+    e51fR004 	ldr	rR, [pc, #-4]
+    e51fR008 	ldr	rR, [pc, #-8]
+
+usage:
+  NSEEL_LDR_UINT(0, 0xdeadbeef) => ldr r5, =0xdeadbeef
+
+this part:
+  add pc, pc, #0
+updates the pc and skips the word, since for some large values it tries
+to execute it (e.g. 0xfc8b007a), but for some it doesn't (e.g. 0x40000000) (?)
+*/
+
+#if 1
+  #if 1 // ARM
+  #define NSEEL_LDR_UINT(r, uint) \
+    ".word 0xe51f"#r"000\n" \
+    "add pc, pc, #0\n" \
+    ".word "#uint"\n"
+  #else // THUMB = untested
+  /*  
+  #define NSEEL_LDR_UINT(r, uint) \
+    ".word 0xe51f"#r"004\n" \
+    "sub pc, pc, #4\n" \
+    ".word "#uint"\n"  
+  */
+  #endif
+#else
+  #define NSEEL_LDR_UINT(r, uint) \
+    "ldr r"#r", ="#uint"\n"
+#endif
+
+
+
+  /*__asm__(
+    "addis r5, 0, 0xdead\n"
+    "ori r5, r5, 0xbeef\n"
+    "lfd f1, 0(r3)\n"
+    "mtctr r5\n"
+    "subi r1, r1, 64\n"
+    "bctrl\n"
+    "addi r1, r1, 64\n"
+    "stfdu f1, 8(r16)\n"
+    "mr r3, r16\n"
+   :: );
+   */
+
+void nseel_asm_1pdd(void) NSEEL_NAKED;
 void nseel_asm_1pdd(void)
 {
-
+  __asm__
+  (
+    NSEEL_LDR_UINT(5, 0xdeadbeef)
+    "ldr r0, [r6, #0]\n" // erm ?
+    "ldr r1, [r6, #4]\n"
+    "sub sp, sp, #64\n"
+    "mov pc, r5\n"
+    "add sp, sp, #64\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    // "mov pc, lr\n"
+  );
 }
+
 void nseel_asm_1pdd_end(void){}
 
 void nseel_asm_2pdd(void)
@@ -93,11 +161,17 @@ void nseel_asm_assign(void)
 {
   __asm__
   (
-    ".word 0xe51f0004\n"
-    ".word 0x40000000\n"
+    NSEEL_LDR_UINT(0, 0x400921fa) //  -- + ----> PI
+    NSEEL_LDR_UINT(1, 0xfc8b007a) // ___/
+    // "ldr r0, =0x400921fa\n"       //  -- + ----> PI
+    // "ldr r1, =0xfc8b007a\n"       // ___/
     "str r0, [r6, #0]\n"
+    "str r1, [r6, #4]\n"
     "mov pc, lr\n"
   );
+
+
+
 }
 void nseel_asm_assign_end(void) {}
 
@@ -157,13 +231,7 @@ void nseel_asm_div_op_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_mod(void)
 {
-  __asm__
-  (    
-    ".word 0xa\n"
-    "mov r0, r3\n"
-    "str r3, [r8, #8]\n"
-    "mov pc, lr\n"
-  );
+
 }
 void nseel_asm_mod_end(void) {}
 
@@ -202,7 +270,7 @@ void nseel_asm_or_op_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_and(void)
 {
-  
+
 }
 void nseel_asm_and_end(void) {}
 

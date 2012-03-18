@@ -13,6 +13,11 @@ main:
   stmfd  sp!, {lr}
 
   # addr at:
-    sub sp, sp, #4
+.thumb
+    ldr r0, .L2    
+.arm
 
   ldmfd  sp!, {pc}
+  
+.L2:
+  .word 0xfc8b007a
