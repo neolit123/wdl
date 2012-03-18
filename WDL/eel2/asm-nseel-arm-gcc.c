@@ -51,10 +51,6 @@ void nseel_asm_invsqrt(void)
 }
 void nseel_asm_invsqrt_end(void) {}
 
-void test(void)
-{
-}
-
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_sqr(void) NSEEL_NAKED;
 void nseel_asm_sqr(void)
@@ -85,15 +81,19 @@ void nseel_asm_abs(void)
 void nseel_asm_abs_end(void) {}
 
 
+void test(void)
+{
+  puts("hello");
+}
+
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_assign(void) NSEEL_NAKED;
 void nseel_asm_assign(void)
 {
   __asm__
   (
-    ".word 0xaaaaaaaa\n"    
-    "mov r0, r3\n"
-    "str r3, [r8, #8]\n"    
+    ".word 0x11111111\n"
+    "str r0, [r8, #8]\n"
     "mov pc, lr\n"
   );
 }

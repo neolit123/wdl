@@ -12,8 +12,7 @@
 main:
   stmfd  sp!, {lr}
 
-  # addr at:    
-    ldr r5, [sp]
-    add sp, sp, #4
+  # addr at:
+    sub sp, sp, #4
 
   ldmfd  sp!, {pc}

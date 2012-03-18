@@ -177,17 +177,17 @@ static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
   /*
     a possible trick here, can be:
   
-    "mov r3, v" would be the same as:
-    e51f3004 	ldr	r3, [pc, #-4]
-    e51f3008 	ldr	r3, [pc, #-8]
+    "mov r0, v" would be the same as:
+    8210:	e51f0004 	ldr	r0, [pc, #-4]	; 0x8214
+    8214:	e51f0008 	ldr	r0, [pc, #-8]	; 0x8214
     
     where 'v' is written after the LDR call in 4 bytes
   */
 
   #if 1 // ARM
-    *((unsigned int*)b) = 0xe51f3004;
+    *((unsigned int*)b) = 0xe51f0004;
   #else // THUMB
-    *((unsigned int*)b) = 0xe51f3008;
+    *((unsigned int*)b) = 0xe51f0008;
   #endif
 
   b = ((unsigned int*)b) + 1;
@@ -203,6 +203,8 @@ static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
 // mov r5, lr
 // str r5, [sp, #-4]
 // sub sp, sp, #4
+
+// static const unsigned int GLUE_FUNC_ENTER[3] = { ARM_NOP, ARM_NOP, ARM_NOP };
 static const unsigned int GLUE_FUNC_ENTER[3] = { 0xe1a0500e, 0xe50d5004, 0xe24dd004 };
 
 // lwz r5, 0(r1)
@@ -214,7 +216,7 @@ static const unsigned int GLUE_FUNC_ENTER[3] = { 0xe1a0500e, 0xe50d5004, 0xe24dd
 // add sp, sp, #4
 // mov lr, r5
 
-// 0xe1a0e005
+// static const unsigned int GLUE_FUNC_LEAVE[3] = { ARM_NOP, ARM_NOP, ARM_NOP };
 static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe59d5000, 0xe28dd004, 0xe1a0e005 };
 
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
@@ -225,7 +227,6 @@ static const unsigned int GLUE_RET[] = { 0xe1a0f00e }; // mov pc, lr
 
 // static const unsigned int GLUE_MOV_ESI_EDI=0x7E308B78; // mr r16, r17
 
-// LII: which registers to use here (r8, r9).. ?
 static const unsigned int GLUE_MOV_ESI_EDI = 0xe1a08009; // mov r8, r9
 
 
@@ -239,19 +240,20 @@ static int GLUE_RESET_ESI(char *out, void *ptr)
 // stwu r3, -4(r1)
 // static const unsigned int GLUE_PUSH_EAX[1]={ 0x9461FFFC};
 
-// str r3, [sp, #-4]
-// add sp, sp, #4
-static const unsigned int GLUE_PUSH_EAX[2] = { 0xe5013004, 0xe28dd004 };
+// str r0, [sp, #-4]
+// sub sp, sp, #4
+
+static const unsigned int GLUE_PUSH_EAX[2] = { 0xe50d0004, 0xe24dd004 };
+// static const unsigned int GLUE_PUSH_EAX[2] = { ARM_NOP, ARM_NOP };
 
 // lwz r14, 0(r1)
 // addi r1, r1, 4
 // static const unsigned int GLUE_POP_EBX[2]={ 0x81C10000, 0x38210004, };
 
-// LII: which registers to use here (r6, r7).. ?
-
 // ldr r6, [sp]
 // add sp, sp, #4
 static const unsigned int GLUE_POP_EBX[2] = { 0xe59d6000, 0xe28dd004 };
+// static const unsigned int GLUE_POP_EBX[2] = { ARM_NOP, ARM_NOP };
 
 // lwz r15, 0(r1)
 // add sp, sp, #4
@@ -259,36 +261,23 @@ static const unsigned int GLUE_POP_EBX[2] = { 0xe59d6000, 0xe28dd004 };
 
 // ldr r7, [sp]
 // add sp, sp, #4
+
 static const unsigned int GLUE_POP_ECX[2] = { 0xe59d7000, 0xe28dd004 };
+// static const unsigned int GLUE_POP_ECX[2] = { ARM_NOP, ARM_NOP };
 
 
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
-  printf("GLUE_CALL_CODE: %p, %p\n", (void *)bp,  (void *)cp);
-  
   __asm__
   (
-    //"stmfd sp!, {r0-r8, lr}\n"
+    "stmfd sp!, {r0-r12, lr}\n"
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
     "mov lr, pc\n"
-    "mov r4, pc\n"
     "mov pc, %0\n"
-    //"ldmfd sp, {r0-r8, pc}\n"
+    "ldmfd sp, {r0-r12, pc}\n"
     :: "r" (cp), "r" (bp)
   );
-  
-  /*
-  __asm__
-  (    
-    "ldr r9, [%1]\n"
-    "stmfd sp!, {r0-r8, lr}\n"
-    "mov lr, pc\n"
-    "ldr pc, [%0]\n"
-    "ldmfd sp!, {r0-r8, pc}\n"
-    :: "r" (cp), "r" (bp)    
-  );
-  */
 };
 
 // LII: no idea what this does atm. endian ?
@@ -1849,6 +1838,7 @@ void NSEEL_code_execute(NSEEL_CODEHANDLE code)
   if (tabptr&31)
     tabptr += 32-((tabptr)&31);
   //printf("calling code!\n");
+  // printf("GLUE_CALL_CODE: %p, %p\n", (void *)tabptr, (void *)codeptr);
   GLUE_CALL_CODE(tabptr,codeptr);
 
 }

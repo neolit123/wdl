@@ -32,7 +32,7 @@ int main()
 
   printf("compile\n");
   char buf[1024];
-  strncpy(buf,"ret = sqr(ret);",sizeof(buf));
+  strncpy(buf,"ret = ret;",sizeof(buf));
   
   
   // note that you shouldnt pass a readonly string directly, since it may need to 
@@ -43,7 +43,7 @@ int main()
   if (ch)
   {
     int n;
-    for (n = 0; n < 10; n ++)
+    for (n = 0; n < 3; n ++)
     {
       NSEEL_code_execute(ch);
       printf("pass(%d), ret=%f\n",n+1,var_ret ? *var_ret : 0.0);
