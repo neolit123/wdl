@@ -172,24 +172,11 @@ INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 #define ARM_NOP   0xe1a00000 // mov r0, r0 = NOP
 
 #define GLUE_MOV_EAX_DIRECTVALUE_SIZE 8
-static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, int v)
+static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, unsigned int v)
 {
-  /*
-    "mov r0, v" would be the same as:
-    8210:	e51f0004 	ldr	r0, [pc, #-4]	; 0x8214
-    8214:	e51f0008 	ldr	r0, [pc, #-8]	; 0x8214
-    
-    where 'v' is written after the LDR call in 4 bytes
-  */
-
-  #if 1 // ARM
-    *((unsigned int*)b) = 0xe51f0004;
-  #else // THUMB
-    *((unsigned int*)b) = 0xe51f0008;
-  #endif
-
-  b = ((unsigned int*)b) + 1;
-  *(int *)b = v;
+  *((unsigned int *)b) = 0xe51f0004; // e51R0004 	ldr	rR, [pc, #-4]
+  b = ((unsigned int *)b) + 1;
+  *(unsigned int *)b = v;
 }
 
 // mov r5, lr
@@ -212,14 +199,14 @@ static const unsigned int GLUE_MOV_ESI_EDI = 0xe1a08009; // mov r8, r9
 
 static int GLUE_RESET_ESI(char *out, void *ptr)
 {
-  printf("GLUE_RESET_ESI: %p, %p\n", (void *)out, (void *)ptr);
+  printf("GLUE_RESET_ESI: %p, %p, %#x\n", (void *)out, (void *)ptr, *(unsigned int *)ptr);  
   if (out) memcpy(out,&GLUE_MOV_ESI_EDI,sizeof(GLUE_MOV_ESI_EDI));
   return sizeof(GLUE_MOV_ESI_EDI);
 }
 
 // str r0, [sp, #-4]
 // sub sp, sp, #4
-static const unsigned int GLUE_PUSH_EAX[2] = { 0xe50d0004, 0xe24dd004 };
+static const unsigned int GLUE_PUSH_EAX[4] = { 0xe50d0004, 0xe24dd004 };
 
 // ldr r6, [sp]
 // add sp, sp, #4
@@ -234,7 +221,7 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
   __asm__
   (
-    "stmfd sp!, {r0-r12, lr}\n"    
+    "stmfd sp!, {r0-r11, lr}\n"
     "mov r4, %0\n"
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
@@ -244,7 +231,7 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     "mov pc, r4\n"
     "add sp, sp, #88\n"
     "ldr r5, [sp, #-84]\n"    
-    "ldmfd sp, {r0-r12, pc}\n"    
+    "ldmfd sp!, {r0-r11, pc}\n"    
     "mov lr, r5\n"
     :: "r" (cp), "r" (bp)
   );

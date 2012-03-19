@@ -127,15 +127,21 @@ void nseel_asm_invsqrt(void)
 }
 void nseel_asm_invsqrt_end(void) {}
 
+void test(void)
+{
+  puts("hello");
+}
+
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_sqr(void) NSEEL_NAKED;
 void nseel_asm_sqr(void)
 {
   __asm__
   (
-    ".word 0xbbbbbbbb\n"
-    // "str r0, [r8, #8]\n"
-    // "mov r0, r8\n"
+    "mov r2, r0\n"
+    "mov r3, r1\n"
+    "str r0, [r6, #0]\n"
+    "str r1, [r6, #4]\n"        
     "mov pc, lr\n"
   );
 }
@@ -150,10 +156,17 @@ void nseel_asm_abs(void)
 void nseel_asm_abs_end(void) {}
 
 
-void test(void)
-{
-  puts("hello");
-}
+/*
+00009694 <test>:
+    9694:	e1a0c00d 	mov	ip, sp
+    9698:	e92dd800 	stmdb	sp!, {fp, ip, lr, pc}
+    969c:	e24cb004 	sub	fp, ip, #4	; 0x4
+    96a0:	e59f0004 	ldr	r0, [pc, #4]	; 96ac <.text+0x168c>
+    96a4:	eb003d44 	bl	18bbc <puts>
+    96a8:	e89da800 	ldmia	sp, {fp, sp, pc}
+    96ac:	000219d0 	ldreqd	r1, [r2], -r0
+
+*/
 
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_assign(void) NSEEL_NAKED;
@@ -161,17 +174,12 @@ void nseel_asm_assign(void)
 {
   __asm__
   (
-    NSEEL_LDR_UINT(0, 0x400921fa) //  -- + ----> PI
-    NSEEL_LDR_UINT(1, 0xfc8b007a) // ___/
-    // "ldr r0, =0x400921fa\n"       //  -- + ----> PI
-    // "ldr r1, =0xfc8b007a\n"       // ___/
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
     "str r0, [r6, #0]\n"
     "str r1, [r6, #4]\n"
     "mov pc, lr\n"
   );
-
-
-
 }
 void nseel_asm_assign_end(void) {}
 

@@ -13,9 +13,7 @@ main:
   stmfd  sp!, {lr}
 
   # addr at:
-.thumb
-    ldr r0, .L2    
-.arm
+  str r0, [r6, #0]
 
   ldmfd  sp!, {pc}
   
