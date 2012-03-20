@@ -220,16 +220,19 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
   __asm__
   (
-    ".data\n" // *** -> comments in "asm-nseel-arm-gcc / ..._sqr(...)"
-    "tstr0:\n" // ***
-    " .word __muldf3\n" // ***
-    ".text\n" // ***
+    ".data\n"
+    "_far0:\n"
+    " .word " \
+/* #0   */  "__adddf3, " \
+/* #4   */  "__subdf3, " \
+/* #8   */  "__muldf3, " \
+/* #12  */  "__divdf3," \
+/* #14  */  "sin" \
+    "\n"
+    ".text\n"
 
     "stmfd sp!, {r0-r12, lr}\n"
-    
-    "ldr r7, =tstr0\n" // ***
-    "ldr r7, [r7]\n"  // ***
-    
+    "ldr r10, =_far0\n"
     "mov r4, %0\n"
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
@@ -239,11 +242,9 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     "mov pc, r4\n"
     "add sp, sp, #88\n"
     "ldr r5, [sp, #-84]\n"
-    "ldmfd sp!, {r0-r12, pc}\n"
+    "ldmia sp!, {r0-r12, pc}\n"
     "mov lr, r5\n"
-    
-    ".pool\n" // ***
-    
+    ".pool\n"
     :: "r" (cp), "r" (bp)
   );
 };

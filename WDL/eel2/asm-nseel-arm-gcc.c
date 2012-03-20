@@ -128,47 +128,20 @@ NSEEL_DECLARE_NAKED(nseel_asm_sqr)
 {
   __asm__
   (
-    /*
-    ".data\n"
-    "tstr0:\n"
-    " .word __muldf3\n"
-    ".text\n"
-    */
-
     "stmdb sp!, {ip, lr}\n"
     "ldr r1, [r0, #4]\n"
     "ldr r0, [r0, #0]\n"
     "mov r2, r0\n"
-    "mov r3, r1\n"
-    
-    /*
-      ***
-      a problem:
-      
-      trying to get any function's address from a naked asm-nseel-arm-gcc.c
-      does not succeed. i.e. the address is incorrect! 
-      
-      defining a local .data section for literals (+ dumping the pool at
-      the end), should be safer, but still does not work.
-      
-      however if the desired function address is retrived from GLUE_CALL_CODE
-      in nseel-compiler.c the address is correct!
-    */
-    
-    // "ldr r7, =tstr0\n"
-    // "ldr r7, [r7]\n"
-
+    "mov r3, r1\n"    
     "mov lr, pc\n"
-    "mov pc, r7\n"
-    
-    "str r0, [r8, #0]\n" // ?
+    "ldr pc, [r10, #12]\n"    
+    "str r0, [r8, #0]\n"
     "str r1, [r8, #4]\n"
     "mov r0, r8\n"
     "add r8, r8, #4\n"
     "mov r1, r8\n"
-    "ldmdb sp!, {ip, pc}\n"
+    "ldmia sp!, {ip, pc}\n"
     "mov pc, lr\n" // dummy for NSEEL_code_execute(...) -> printf(...) ?
-     // ".pool\n" 
   );
 }
 
