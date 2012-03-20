@@ -8,6 +8,10 @@
 
 #define NSEEL_NAKED __attribute__ ((naked))
 
+#define NSEEL_DECLARE_NAKED(x) \
+  void x(void) NSEEL_NAKED; \
+  void x(void)
+
 /*
 for some reason this doesn't always work:
   ldr rR, =some_uint
@@ -21,7 +25,7 @@ so to load a large value (32bit) into register R, we do:
     e51fR008 	ldr	rR, [pc, #-8]
 
 usage:
-  NSEEL_LDR_UINT(0, 0xdeadbeef) => ldr r5, =0xdeadbeef
+  NSEEL_LDR_WORD(0, 0xdeadbeef) => ldr r5, =0xdeadbeef
 
 this part:
   add pc, pc, #0
@@ -30,21 +34,13 @@ to execute it (e.g. 0xfc8b007a), but for some it doesn't (e.g. 0x40000000) (?)
 */
 
 #if 1
-  #if 1 // ARM
-  #define NSEEL_LDR_UINT(r, uint) \
+  // ARM mode
+  #define NSEEL_LDR_WORD(r, word) \
     ".word 0xe51f"#r"000\n" \
     "add pc, pc, #0\n" \
-    ".word "#uint"\n"
-  #else // THUMB = untested
-  /*  
-  #define NSEEL_LDR_UINT(r, uint) \
-    ".word 0xe51f"#r"004\n" \
-    "sub pc, pc, #4\n" \
-    ".word "#uint"\n"  
-  */
-  #endif
+    ".word "#word"\n"
 #else
-  #define NSEEL_LDR_UINT(r, uint) \
+  #define NSEEL_LDR_WORD(r, uint) \
     "ldr r"#r", ="#uint"\n"
 #endif
 
@@ -68,7 +64,7 @@ void nseel_asm_1pdd(void)
 {
   __asm__
   (
-    NSEEL_LDR_UINT(5, 0xdeadbeef)
+    NSEEL_LDR_WORD(5, 0xdeadbeef)
     "ldr r0, [r6, #0]\n" // erm ?
     "ldr r1, [r6, #4]\n"
     "sub sp, sp, #64\n"
@@ -127,25 +123,56 @@ void nseel_asm_invsqrt(void)
 }
 void nseel_asm_invsqrt_end(void) {}
 
-void test(void)
-{
-  puts("hello");
-}
-
 //---------------------------------------------------------------------------------------------------------------
-void nseel_asm_sqr(void) NSEEL_NAKED;
-void nseel_asm_sqr(void)
+NSEEL_DECLARE_NAKED(nseel_asm_sqr)
 {
   __asm__
   (
+    /*
+    ".data\n"
+    "tstr0:\n"
+    " .word __muldf3\n"
+    ".text\n"
+    */
+
+    "stmdb sp!, {ip, lr}\n"
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
     "mov r2, r0\n"
     "mov r3, r1\n"
-    "str r0, [r6, #0]\n"
-    "str r1, [r6, #4]\n"        
-    "mov pc, lr\n"
+    
+    /*
+      ***
+      a problem:
+      
+      trying to get any function's address from a naked asm-nseel-arm-gcc.c
+      does not succeed. i.e. the address is incorrect! 
+      
+      defining a local .data section for literals (+ dumping the pool at
+      the end), should be safer, but still does not work.
+      
+      however if the desired function address is retrived from GLUE_CALL_CODE
+      in nseel-compiler.c the address is correct!
+    */
+    
+    // "ldr r7, =tstr0\n"
+    // "ldr r7, [r7]\n"
+
+    "mov lr, pc\n"
+    "mov pc, r7\n"
+    
+    "str r0, [r8, #0]\n" // ?
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "add r8, r8, #4\n"
+    "mov r1, r8\n"
+    "ldmdb sp!, {ip, pc}\n"
+    "mov pc, lr\n" // dummy for NSEEL_code_execute(...) -> printf(...) ?
+     // ".pool\n" 
   );
 }
-void nseel_asm_sqr_end(void) {}
+
+NSEEL_DECLARE_NAKED(nseel_asm_sqr_end) {}
 
 
 //---------------------------------------------------------------------------------------------------------------
@@ -155,22 +182,8 @@ void nseel_asm_abs(void)
 }
 void nseel_asm_abs_end(void) {}
 
-
-/*
-00009694 <test>:
-    9694:	e1a0c00d 	mov	ip, sp
-    9698:	e92dd800 	stmdb	sp!, {fp, ip, lr, pc}
-    969c:	e24cb004 	sub	fp, ip, #4	; 0x4
-    96a0:	e59f0004 	ldr	r0, [pc, #4]	; 96ac <.text+0x168c>
-    96a4:	eb003d44 	bl	18bbc <puts>
-    96a8:	e89da800 	ldmia	sp, {fp, sp, pc}
-    96ac:	000219d0 	ldreqd	r1, [r2], -r0
-
-*/
-
 //---------------------------------------------------------------------------------------------------------------
-void nseel_asm_assign(void) NSEEL_NAKED;
-void nseel_asm_assign(void)
+NSEEL_DECLARE_NAKED(nseel_asm_assign)
 {
   __asm__
   (
@@ -181,7 +194,7 @@ void nseel_asm_assign(void)
     "mov pc, lr\n"
   );
 }
-void nseel_asm_assign_end(void) {}
+NSEEL_DECLARE_NAKED(nseel_asm_assign_end) {}
 
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_add(void)
@@ -461,9 +474,9 @@ void _asm_generic1parm_retd_end(void) {}
 
 
 
-void _asm_megabuf(void)
+NSEEL_DECLARE_NAKED(_asm_megabuf)
 {
 
 }
 
-void _asm_megabuf_end(void) {}
+NSEEL_DECLARE_NAKED(_asm_megabuf_end) {}

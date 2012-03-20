@@ -206,7 +206,7 @@ static int GLUE_RESET_ESI(char *out, void *ptr)
 
 // str r0, [sp, #-4]
 // sub sp, sp, #4
-static const unsigned int GLUE_PUSH_EAX[4] = { 0xe50d0004, 0xe24dd004 };
+static const unsigned int GLUE_PUSH_EAX[2] = { 0xe50d0004, 0xe24dd004 };
 
 // ldr r6, [sp]
 // add sp, sp, #4
@@ -216,12 +216,20 @@ static const unsigned int GLUE_POP_EBX[2] = { 0xe59d6000, 0xe28dd004 };
 // add sp, sp, #4
 static const unsigned int GLUE_POP_ECX[2] = { 0xe59d7000, 0xe28dd004 };
 
-
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
   __asm__
   (
-    "stmfd sp!, {r0-r11, lr}\n"
+    ".data\n" // *** -> comments in "asm-nseel-arm-gcc / ..._sqr(...)"
+    "tstr0:\n" // ***
+    " .word __muldf3\n" // ***
+    ".text\n" // ***
+
+    "stmfd sp!, {r0-r12, lr}\n"
+    
+    "ldr r7, =tstr0\n" // ***
+    "ldr r7, [r7]\n"  // ***
+    
     "mov r4, %0\n"
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
@@ -230,9 +238,12 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     "sub sp, sp, #88\n"
     "mov pc, r4\n"
     "add sp, sp, #88\n"
-    "ldr r5, [sp, #-84]\n"    
-    "ldmfd sp!, {r0-r11, pc}\n"    
+    "ldr r5, [sp, #-84]\n"
+    "ldmfd sp!, {r0-r12, pc}\n"
     "mov lr, r5\n"
+    
+    ".pool\n" // ***
+    
     :: "r" (cp), "r" (bp)
   );
 };
@@ -1779,7 +1790,7 @@ void NSEEL_code_execute(NSEEL_CODEHANDLE code)
   if (!h || !h->code) return;
 
   codeptr = (INT_PTR) h->code;
-#if 0
+#if 1
   {
 	unsigned int *p=(unsigned int *)codeptr;
 	while (*p != GLUE_RET[0])
