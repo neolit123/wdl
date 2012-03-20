@@ -2,4 +2,10 @@
 _backup.cmd
 *.obj
 *.o
-test.arm
+*.s
+*.i
+*.ii
+!test_inst.s
+*.out
+*.arm
+objdump.txt
