@@ -128,26 +128,19 @@ NSEEL_DECLARE_NAKED(nseel_asm_sqr)
 {
   __asm__
   (
-    "stmdb sp!, {ip, lr}\n"
     "ldr r1, [r0, #4]\n"
     "ldr r0, [r0, #0]\n"
     "mov r2, r0\n"
-    "mov r3, r1\n"    
+    "mov r3, r1\n"
     "mov lr, pc\n"
-    "ldr pc, [r10, #12]\n"    
+    "ldr pc, [r4, #8]\n"
     "str r0, [r8, #0]\n"
     "str r1, [r8, #4]\n"
     "mov r0, r8\n"
-    "add r8, r8, #4\n"
-    "mov r1, r8\n"
-    "ldmia sp!, {ip, pc}\n"
-    "mov pc, lr\n" // dummy for NSEEL_code_execute(...) -> printf(...) ?
+    "mov pc, lr\n"
   );
 }
-
 NSEEL_DECLARE_NAKED(nseel_asm_sqr_end) {}
-
-
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_abs(void)
 {
@@ -170,11 +163,23 @@ NSEEL_DECLARE_NAKED(nseel_asm_assign)
 NSEEL_DECLARE_NAKED(nseel_asm_assign_end) {}
 
 //---------------------------------------------------------------------------------------------------------------
-void nseel_asm_add(void)
+NSEEL_DECLARE_NAKED(nseel_asm_add)
 {
-
+  __asm__
+  (
+    "ldr r3, [r6, #4]\n"
+    "ldr r2, [r6, #0]\n"
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #0]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_add_end(void) {}
+NSEEL_DECLARE_NAKED(nseel_asm_add_end) {}
 
 void nseel_asm_add_op(void)
 {
@@ -184,11 +189,23 @@ void nseel_asm_add_op_end(void) {}
 
 
 //---------------------------------------------------------------------------------------------------------------
-void nseel_asm_sub(void)
+NSEEL_DECLARE_NAKED(nseel_asm_sub)
 {
-
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #4]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_sub_end(void) {}
+NSEEL_DECLARE_NAKED(nseel_asm_sub_end) {}
 
 void nseel_asm_sub_op(void)
 {
@@ -197,11 +214,23 @@ void nseel_asm_sub_op(void)
 void nseel_asm_sub_op_end(void) {}
 
 //---------------------------------------------------------------------------------------------------------------
-void nseel_asm_mul(void)
+NSEEL_DECLARE_NAKED(nseel_asm_mul)
 {
-
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #8]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_mul_end(void) {}
+NSEEL_DECLARE_NAKED(nseel_asm_mul_end) {}
 
 void nseel_asm_mul_op(void)
 {
@@ -210,11 +239,23 @@ void nseel_asm_mul_op(void)
 void nseel_asm_mul_op_end(void) {}
 
 //---------------------------------------------------------------------------------------------------------------
-void nseel_asm_div(void)
+NSEEL_DECLARE_NAKED(nseel_asm_div)
 {
-
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #12]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_div_end(void) {}
+NSEEL_DECLARE_NAKED(nseel_asm_div_end) {}
 
 void nseel_asm_div_op(void)
 {

@@ -221,25 +221,23 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
   __asm__
   (
     ".data\n"
-    "_far0:\n"
+    "_flist0:\n"
     " .word " \
-/* #0   */  "__adddf3, " \
-/* #4   */  "__subdf3, " \
-/* #8   */  "__muldf3, " \
-/* #12  */  "__divdf3," \
-/* #14  */  "sin" \
-    "\n"
+/* 0  */  "__adddf3, " \
+/* 4  */  "__subdf3, " \
+/* 8  */  "__muldf3, " \
+/* 12 */  "__divdf3," \
+/* 16 */  "sin" \
+    " \n"
     ".text\n"
-
     "stmfd sp!, {r0-r12, lr}\n"
-    "ldr r10, =_far0\n"
-    "mov r4, %0\n"
+    "ldr r4, =_flist0\n"
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
     "mov r5, lr\n"
     "str r5, [sp, #-84]\n"
     "sub sp, sp, #88\n"
-    "mov pc, r4\n"
+    "mov pc, %0\n"
     "add sp, sp, #88\n"
     "ldr r5, [sp, #-84]\n"
     "ldmia sp!, {r0-r12, pc}\n"
@@ -249,7 +247,6 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
   );
 };
 
-// LII: no idea what this does atm. endian ?
 INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
 // todo 64 bit ppc will take some work
@@ -1791,7 +1788,7 @@ void NSEEL_code_execute(NSEEL_CODEHANDLE code)
   if (!h || !h->code) return;
 
   codeptr = (INT_PTR) h->code;
-#if 1
+#if 0
   {
 	unsigned int *p=(unsigned int *)codeptr;
 	while (*p != GLUE_RET[0])
