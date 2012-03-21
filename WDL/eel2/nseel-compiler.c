@@ -199,7 +199,7 @@ static const unsigned int GLUE_MOV_ESI_EDI = 0xe1a08009; // mov r8, r9
 
 static int GLUE_RESET_ESI(char *out, void *ptr)
 {
-  printf("GLUE_RESET_ESI: %p, %p, %#x\n", (void *)out, (void *)ptr, *(unsigned int *)ptr);  
+  // printf("GLUE_RESET_ESI: %p, %p, %#x\n", (void *)out, (void *)ptr, *(unsigned int *)ptr);  
   if (out) memcpy(out,&GLUE_MOV_ESI_EDI,sizeof(GLUE_MOV_ESI_EDI));
   return sizeof(GLUE_MOV_ESI_EDI);
 }
@@ -227,7 +227,7 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 /* 4  */  "__subdf3, " \
 /* 8  */  "__muldf3, " \
 /* 12 */  "__divdf3," \
-/* 16 */  "sin" \
+/* 16 */  "sqrt" \
     " \n"
     ".text\n"
     "stmfd sp!, {r0-r12, lr}\n"
@@ -249,15 +249,11 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 
 INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
-// todo 64 bit ppc will take some work
-  unsigned int *p=(unsigned int *)_p;
+  INT_PTR *p = (INT_PTR *)_p;
  
-  while ((p[0]&0x0000FFFF) != 0x0000dead &&
-         (p[1]&0x0000FFFF) != 0x0000beef) p++;
-  p[0] = (p[0]&0xFFFF0000) | (((unsigned int)newv)>>16);
-  p[1] = (p[1]&0xFFFF0000) | (((unsigned int)newv)&0xFFFF);
-
-  return (INT_PTR*)++p;
+  while (p[0] != 0xdeadbeef) p++;
+  p[0] = (INT_PTR)newv;
+  return (INT_PTR *)++p;
 }
 
 #else

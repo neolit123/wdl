@@ -1,23 +1,29 @@
 /*
-  soft-float calls for 2x 64bit doubles are made using r0,r1,r2,r3
-  return is r0, r1
-
-  find how doubles are packed. big endian = blah
+  notes:
+  - it might be better and more efficient to store all constants
+  in the literal pool, but it seems less safer than the NSEEL_LDR_WORD method
+  bellow
+  - 2pp, 2ppd (etc..) are untested
+  
 */
 
-
 #define NSEEL_NAKED __attribute__ ((naked))
+#define NSEEL_NOP "mov r0, r0\n"
 
 #define NSEEL_DECLARE_NAKED(x) \
   void x(void) NSEEL_NAKED; \
   void x(void)
 
+#define NSEEL_DECLARE_NAKED_NOP(x) \
+  NSEEL_DECLARE_NAKED(x) \
+  { __asm__ ( NSEEL_NOP ); }
+
 /*
 for some reason this doesn't always work:
-  ldr rR, =some_uint
+  ldr rR, =some_uint, where some_uint is 32bit hex directly or  
+  ldr rR, =some_label, where some label is defined in a data section
 
 so to load a large value (32bit) into register R, we do:
-
     e59fR008 	ldr	rR, [pc, #8]
     e59fR004 	ldr	rR, [pc, #4]
     e51fR000 	ldr	rR, [pc, #0]
@@ -28,7 +34,7 @@ usage:
   NSEEL_LDR_WORD(0, 0xdeadbeef) => ldr r5, =0xdeadbeef
 
 this part:
-  add pc, pc, #0
+  add pc, pc, #0 
 updates the pc and skips the word, since for some large values it tries
 to execute it (e.g. 0xfc8b007a), but for some it doesn't (e.g. 0x40000000) (?)
 */
@@ -44,84 +50,131 @@ to execute it (e.g. 0xfc8b007a), but for some it doesn't (e.g. 0x40000000) (?)
     "ldr r"#r", ="#uint"\n"
 #endif
 
-
-
-  /*__asm__(
-    "addis r5, 0, 0xdead\n"
-    "ori r5, r5, 0xbeef\n"
-    "lfd f1, 0(r3)\n"
-    "mtctr r5\n"
-    "subi r1, r1, 64\n"
-    "bctrl\n"
-    "addi r1, r1, 64\n"
-    "stfdu f1, 8(r16)\n"
-    "mr r3, r16\n"
-   :: );
-   */
-
-void nseel_asm_1pdd(void) NSEEL_NAKED;
-void nseel_asm_1pdd(void)
+NSEEL_DECLARE_NAKED(nseel_asm_1pdd)
 {
   __asm__
   (
     NSEEL_LDR_WORD(5, 0xdeadbeef)
-    "ldr r0, [r6, #0]\n" // erm ?
-    "ldr r1, [r6, #4]\n"
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
     "sub sp, sp, #64\n"
+    "mov lr, pc\n"
     "mov pc, r5\n"
     "add sp, sp, #64\n"
     "str r0, [r8, #0]\n"
     "str r1, [r8, #4]\n"
     "mov r0, r8\n"
-    // "mov pc, lr\n"
+    "mov pc, lr\n"
   );
 }
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_1pdd_end)
 
-void nseel_asm_1pdd_end(void){}
-
-void nseel_asm_2pdd(void)
+NSEEL_DECLARE_NAKED(nseel_asm_2pdd)
 {
-
-};
-void nseel_asm_2pdd_end(void){}
-
-void nseel_asm_2pdds(void)
-{
-
+  __asm__
+  (
+    NSEEL_LDR_WORD(5, 0xdeadbeef)
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "sub sp, sp, #64\n"
+    "mov lr, pc\n"
+    "mov pc, r5\n"
+    "add sp, sp, #64\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_2pdds_end(void){}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_2pdd_end)
 
-
-void nseel_asm_2pp(void)
+NSEEL_DECLARE_NAKED(nseel_asm_2pdds)
 {
+  __asm__
+  (
+    NSEEL_LDR_WORD(5, 0xdeadbeef)
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "sub sp, sp, #64\n"
+    "mov lr, pc\n"
+    "mov pc, r5\n"
+    "add sp, sp, #64\n"
+    "str r0, [r6, #0]\n"
+    "str r1, [r6, #4]\n"
+    "mov r0, r6\n"
+    "mov pc, lr\n"
+  );
+}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_2pdds_end)
 
-};
-void nseel_asm_2pp_end(void){}
-
-void nseel_asm_1pp(void)
+NSEEL_DECLARE_NAKED(nseel_asm_2pp)
 {
+  __asm__
+  (
+    NSEEL_LDR_WORD(5, 0xdeadbeef)
+    "sub sp, sp, #64\n"
+    "mov r1, r0\n"
+    "mov r0, r6\n"
+    "mov lr, pc\n"
+    "mov pc, r5\n"
+    "add sp, sp, #64\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
+}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_2pp_end)
 
-};
-void nseel_asm_1pp_end(void){}
+NSEEL_DECLARE_NAKED(nseel_asm_1pp)
+{
+  __asm__
+  (
+    NSEEL_LDR_WORD(5, 0xdeadbeef)
+    "sub sp, sp, #64\n"
+    "mov lr, pc\n"
+    "mov pc, r5\n"
+    "add sp, sp, #64\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
+}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_1pp_end)
 
 
 //---------------------------------------------------------------------------------------------------------------
 
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_exec2)
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_exec2_end)
 
-
-// do nothing, eh
-void nseel_asm_exec2(void)
+// slow
+NSEEL_DECLARE_NAKED(nseel_asm_invsqrt)
 {
+  __asm__
+  (
+    "ldr r1, [r0, #4]\n"            // x
+    "ldr r0, [r0, #0]\n"            //
+    "mov lr, pc\n"
+    "ldr pc, [r4, #16]\n"           // y = sqrt(x)
+    "mov r2, r0\n"
+    "mov r3, r1\n"
+    NSEEL_LDR_WORD(0, 0x3ff00000)   // 1.0 = 0x3ff0000000000000
+    "mov r1, #0\n"                  //
+    "mov lr, pc\n"
+    "ldr pc, [r4, #12]\n"           // 1.0 / y
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_exec2_end(void) { }
-
-
-
-void nseel_asm_invsqrt(void)
-{
-
-}
-void nseel_asm_invsqrt_end(void) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_invsqrt_end)
 
 //---------------------------------------------------------------------------------------------------------------
 NSEEL_DECLARE_NAKED(nseel_asm_sqr)
@@ -140,7 +193,7 @@ NSEEL_DECLARE_NAKED(nseel_asm_sqr)
     "mov pc, lr\n"
   );
 }
-NSEEL_DECLARE_NAKED(nseel_asm_sqr_end) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_sqr_end)
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_abs(void)
 {
@@ -160,7 +213,7 @@ NSEEL_DECLARE_NAKED(nseel_asm_assign)
     "mov pc, lr\n"
   );
 }
-NSEEL_DECLARE_NAKED(nseel_asm_assign_end) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_assign_end)
 
 //---------------------------------------------------------------------------------------------------------------
 NSEEL_DECLARE_NAKED(nseel_asm_add)
@@ -179,13 +232,13 @@ NSEEL_DECLARE_NAKED(nseel_asm_add)
     "mov pc, lr\n"
   );
 }
-NSEEL_DECLARE_NAKED(nseel_asm_add_end) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_add_end)
 
-void nseel_asm_add_op(void)
+NSEEL_DECLARE_NAKED(nseel_asm_add_op)
 {
 
 }
-void nseel_asm_add_op_end(void) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_add_op_end)
 
 
 //---------------------------------------------------------------------------------------------------------------
@@ -205,13 +258,13 @@ NSEEL_DECLARE_NAKED(nseel_asm_sub)
     "mov pc, lr\n"
   );
 }
-NSEEL_DECLARE_NAKED(nseel_asm_sub_end) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_sub_end)
 
-void nseel_asm_sub_op(void)
+NSEEL_DECLARE_NAKED(nseel_asm_sub_op)
 {
 
 }
-void nseel_asm_sub_op_end(void) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_sub_op_end)
 
 //---------------------------------------------------------------------------------------------------------------
 NSEEL_DECLARE_NAKED(nseel_asm_mul)
@@ -230,7 +283,7 @@ NSEEL_DECLARE_NAKED(nseel_asm_mul)
     "mov pc, lr\n"
   );
 }
-NSEEL_DECLARE_NAKED(nseel_asm_mul_end) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_mul_end)
 
 void nseel_asm_mul_op(void)
 {
@@ -255,7 +308,7 @@ NSEEL_DECLARE_NAKED(nseel_asm_div)
     "mov pc, lr\n"
   );
 }
-NSEEL_DECLARE_NAKED(nseel_asm_div_end) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_div_end)
 
 void nseel_asm_div_op(void)
 {
@@ -493,4 +546,4 @@ NSEEL_DECLARE_NAKED(_asm_megabuf)
 
 }
 
-NSEEL_DECLARE_NAKED(_asm_megabuf_end) {}
+NSEEL_DECLARE_NAKED_NOP(_asm_megabuf_end)

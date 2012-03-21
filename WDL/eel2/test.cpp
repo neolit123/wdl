@@ -19,7 +19,7 @@ int main()
 
   printf("alloc\n");
   NSEEL_VMCTX vm = NSEEL_VM_alloc();
-  if (!vm) 
+  if (!vm)
   {
     printf("Error creating VM\n");
     return -1;
@@ -32,17 +32,17 @@ int main()
 
   printf("compile\n");
   char buf[1024];
-  strncpy(buf,"ret = (sqr(ret - 3.0) / 2 + 1.5)*ret;",sizeof(buf));  
-  
-  // note that you shouldnt pass a readonly string directly, since it may need to 
-  // fudge with the string during the compilation (it will always restore it to the 
+  strncpy(buf,"ret = sin(ret)*sin(ret);",sizeof(buf));
+
+  // note that you shouldnt pass a readonly string directly, since it may need to
+  // fudge with the string during the compilation (it will always restore it to the
   // original value though).
   NSEEL_CODEHANDLE ch = NSEEL_code_compile(vm,buf,0);
 
   if (ch)
   {
     int n;
-    for (n = 0; n < 1; n++)
+    for (n = 0; n < 3; n++)
     {
       NSEEL_code_execute(ch);
       printf("pass(%d), ret=%.16f\n",n+1,var_ret ? *var_ret : 0.0);
@@ -50,7 +50,7 @@ int main()
 
     NSEEL_code_free(ch);
   }
-  else 
+  else
   {
     char *err = NSEEL_code_getcodeerror(vm);
 
@@ -58,7 +58,7 @@ int main()
   }
 
   NSEEL_VM_free(vm);
-  
+
   #ifdef __arm__
     puts(""); // the simulator needs a dummy line at the end
   #endif
