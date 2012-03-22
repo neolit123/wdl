@@ -32,7 +32,7 @@ int main()
 
   printf("compile\n");
   char buf[1024];
-  strncpy(buf,"ret = -ret;",sizeof(buf));
+  strncpy(buf,"ret = ((ret << 2) >> 1) / 1.5;",sizeof(buf));
 
   // note that you shouldnt pass a readonly string directly, since it may need to
   // fudge with the string during the compilation (it will always restore it to the

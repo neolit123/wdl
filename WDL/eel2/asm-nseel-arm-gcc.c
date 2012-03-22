@@ -6,8 +6,13 @@
   - 2pp, 2ppd (etc..) are untested
 */
 
+#ifdef	__cplusplus
+  extern "C" {
+#endif
+
 #define NSEEL_SIGN_MASK   0x80000000
 #define NSEEL_NOP         "mov r0, r0\n"
+#define NSEEL_ULL         unsigned long long
 
 #define NSEEL_STR_EXPAND(x) #x
 #define NSEEL_STR(x) NSEEL_STR_EXPAND(x)
@@ -20,7 +25,9 @@
 /* it seems that the tested compiler does not like empty naked functions */
 #define NSEEL_DECLARE_NAKED_NOP(x) \
   NSEEL_DECLARE_NAKED(x) \
-  { __asm__ ( NSEEL_NOP ); }
+  { \
+    __asm__ ( NSEEL_NOP ); \
+  }
 
 /*
   load a word into register using:
@@ -47,14 +54,45 @@
 #else
   #define NSEEL_OPTIMIZE_ATTR
 #endif
+
 #define NSEEL_DECLARE_LOCAL_FP2(x) \
   double x(const double a, const double b) NSEEL_OPTIMIZE_ATTR; \
   double x(const double a, const double b)
 
-#ifdef	__cplusplus
-  extern "C" {
-#endif
+#define NSEEL_DECLARE_LOCAL_FP1(x) \
+  double x(const double a) NSEEL_OPTIMIZE_ATTR; \
+  double x(const double a)
 
+/*
+  for now, use the following scheme for the bitwise operators.
+  we leave it to the compiler to make optimizations here - very inefficient
+  for the soft-float lib.
+*/
+#define NSEEL_DECLARE_LOCAL_BOP_FP2(x, _op_) \
+  NSEEL_DECLARE_LOCAL_FP2(x) \
+  { \
+    const NSEEL_ULL dw0 = (NSEEL_ULL)nseel_floor(a); \
+    const NSEEL_ULL dw1 = (NSEEL_ULL)nseel_floor(b); \
+    return (double)(dw0 _op_ dw1); \
+  }
+
+NSEEL_DECLARE_LOCAL_FP1(nseel_floor)
+{
+  NSEEL_ULL dw;
+  if (a < 0.0)
+    dw = (NSEEL_ULL)(a - 1.0);
+  else
+    dw = (NSEEL_ULL)a;
+  return (double)dw;
+}
+
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_and, &)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_or, |)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_xor, ^)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shr, >>)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shl, <<)
+
+/* other operations with doubles */
 NSEEL_DECLARE_LOCAL_FP2(nseel_add)
 {
   return a + b;
@@ -75,7 +113,21 @@ NSEEL_DECLARE_LOCAL_FP2(nseel_div)
   return a / b;
 }
 
-/* the version for doubles does not work very well with the tested compiler */
+NSEEL_DECLARE_LOCAL_FP2(nseel_min)
+{
+  return (a < b) ? a : b;
+}
+
+NSEEL_DECLARE_LOCAL_FP2(nseel_max)
+{
+  return (a > b) ? a : b;
+}
+
+/*
+  the version for doubles does not work very well with the tested compiler,
+  so we use the one for floats instead, but lose precision and cannot store
+  larger numbers.
+*/
 NSEEL_DECLARE_LOCAL_FP2(nseel_invsqrt)
 {
   const float a2 = a*0.5f;
@@ -85,16 +137,6 @@ NSEEL_DECLARE_LOCAL_FP2(nseel_invsqrt)
   i = 0x5f3759df - (i >> 1);
   y = *(float *)&i;
   return (double)(y*(1.5f - (a2*y*y)));
-}
-
-NSEEL_DECLARE_LOCAL_FP2(nseel_min)
-{
-  return (a < b) ? a : b;
-}
-
-NSEEL_DECLARE_LOCAL_FP2(nseel_max)
-{
-  return (a > b) ? a : b;
 }
 
 /* do we really need to move the sp for these ?*/
@@ -198,7 +240,7 @@ NSEEL_DECLARE_NAKED_NOP(nseel_asm_1pp_end)
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_exec2)
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_exec2_end)
 
-// "q3a" version single precision
+// call the "q3a" version - single precision
 NSEEL_DECLARE_NAKED(nseel_asm_invsqrt)
 {
   __asm__
@@ -362,17 +404,41 @@ void nseel_asm_mod(void)
 }
 void nseel_asm_mod_end(void) {}
 
-void nseel_asm_shl(void)
+NSEEL_DECLARE_NAKED(nseel_asm_shl)
 {
-
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #44]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_shl_end(void) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_shl_end)
 
-void nseel_asm_shr(void)
+NSEEL_DECLARE_NAKED(nseel_asm_shr)
 {
-
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #48]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_shr_end(void) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_shr_end)
 
 void nseel_asm_mod_op(void)
 {
@@ -414,7 +480,6 @@ NSEEL_DECLARE_NAKED(nseel_asm_uminus)
 {
   __asm__
   (
-    "uminus_start:\n"
     "ldr r1, [r0, #4]\n"
     "ldr r0, [r0, #0]\n"
     NSEEL_LDR_WORD(2, NSEEL_SIGN_MASK)
