@@ -27,7 +27,6 @@
 
 #include "ns-eel-int.h"
 
-
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
@@ -216,6 +215,7 @@ static const unsigned int GLUE_POP_EBX[2] = { 0xe59d6000, 0xe28dd004 };
 // add sp, sp, #4
 static const unsigned int GLUE_POP_ECX[2] = { 0xe59d7000, 0xe28dd004 };
 
+/* same case as asm-nseel-arm-gcc.c: do we really need to shift sp here ? */
 static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 {
   __asm__
@@ -223,11 +223,13 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     ".data\n"
     "_flist0:\n"
     " .word " \
-/* 0  */  "__adddf3, " \
-/* 4  */  "__subdf3, " \
-/* 8  */  "__muldf3, " \
-/* 12 */  "__divdf3," \
-/* 16 */  "sqrt" \
+/* 0  */  "nseel_add," \
+/* 4  */  "nseel_sub," \
+/* 8  */  "nseel_mul," \
+/* 12 */  "nseel_div," \
+/* 16 */  "nseel_invsqrt," \
+/* 20 */  "nseel_min," \
+/* 24 */  "nseel_max" \
     " \n"
     ".text\n"
     "stmfd sp!, {r0-r12, lr}\n"
@@ -235,11 +237,11 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     "mov r9, %1\n"
     "sub r9, r9, #8\n"
     "mov r5, lr\n"
-    "str r5, [sp, #-84]\n"
-    "sub sp, sp, #88\n"
+    //"str r5, [sp, #-84]\n"
+    //"sub sp, sp, #88\n"
     "mov pc, %0\n"
-    "add sp, sp, #88\n"
-    "ldr r5, [sp, #-84]\n"
+    //"add sp, sp, #88\n"
+    //"ldr r5, [sp, #-84]\n"
     "ldmia sp!, {r0-r12, pc}\n"
     "mov lr, r5\n"
     ".pool\n"
@@ -599,7 +601,7 @@ static functionType fnTable1[] = {
   { "loop", nseel_asm_repeat,nseel_asm_repeat_end, 2 },
   { "while", nseel_asm_repeatwhile,nseel_asm_repeatwhile_end, 1 },
 
-#ifdef __ppc__
+#if defined __ppc__
   { "_not",   nseel_asm_bnot,nseel_asm_bnot_end,  1, {&g_closefact,&eel_zero,&eel_one} } ,
   { "_equal",  nseel_asm_equal,nseel_asm_equal_end, 2, {&g_closefact,&eel_zero, &eel_one} },
   { "_noteq",  nseel_asm_notequal,nseel_asm_notequal_end, 2, {&g_closefact,&eel_one,&eel_zero} },
@@ -607,7 +609,7 @@ static functionType fnTable1[] = {
   { "_above",  nseel_asm_above,nseel_asm_above_end, 2, {&eel_zero, &eel_one}  },
   { "_beleq",  nseel_asm_beloweq,nseel_asm_beloweq_end, 2, {&eel_zero, &eel_one}  },
   { "_aboeq",  nseel_asm_aboveeq,nseel_asm_aboveeq_end, 2, {&eel_zero, &eel_one} },
-#elif defined __ppc__ || defined __arm__
+#elif defined __arm__
   //
 #else
   { "_not",   nseel_asm_bnot,nseel_asm_bnot_end,  1, {&g_closefact} } ,

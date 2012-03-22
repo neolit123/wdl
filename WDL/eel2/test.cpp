@@ -32,7 +32,7 @@ int main()
 
   printf("compile\n");
   char buf[1024];
-  strncpy(buf,"ret = sin(ret)*sin(ret);",sizeof(buf));
+  strncpy(buf,"ret = invsqrt(ret);",sizeof(buf));
 
   // note that you shouldnt pass a readonly string directly, since it may need to
   // fudge with the string during the compilation (it will always restore it to the
