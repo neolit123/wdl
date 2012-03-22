@@ -6,7 +6,11 @@
   - 2pp, 2ppd (etc..) are untested
 */
 
-#define NSEEL_NOP "mov r0, r0\n"
+#define NSEEL_SIGN_MASK   0x80000000
+#define NSEEL_NOP         "mov r0, r0\n"
+
+#define NSEEL_STR_EXPAND(x) #x
+#define NSEEL_STR(x) NSEEL_STR_EXPAND(x)
 
 /* naked f. declarations */
 #define NSEEL_NAKED __attribute__ ((naked))
@@ -17,6 +21,24 @@
 #define NSEEL_DECLARE_NAKED_NOP(x) \
   NSEEL_DECLARE_NAKED(x) \
   { __asm__ ( NSEEL_NOP ); }
+
+/*
+  load a word into register using:
+  e59fR004 	ldr	rR, [pc, #4]
+  e51fR000 	ldr	rR, [pc, #0]
+  e51fR004 	ldr	rR, [pc, #-4]
+  etc...
+*/
+#if 1
+  // note: for ARM mode only
+  #define NSEEL_LDR_WORD(r, word) \
+    ".word 0xe51f"NSEEL_STR(r)"000\n" \
+    "add pc, pc, #0\n" \
+    ".word "NSEEL_STR(word)"\n"
+#else
+  #define NSEEL_LDR_WORD(r, word) \
+    "ldr r"NSEEL_STR(r)", ="NSEEL_STR(word)"\n"
+#endif
 
 /* compiler / library dependent, local functions */
 #define NSEEL_OPT_LEVEL 3
@@ -70,24 +92,6 @@ NSEEL_DECLARE_LOCAL_FP2(nseel_max)
 {
   return (a > b) ? a : b;
 }
-
-/*
-  load a word into register using:
-  e59fR004 	ldr	rR, [pc, #4]
-  e51fR000 	ldr	rR, [pc, #0]
-  e51fR004 	ldr	rR, [pc, #-4]
-  etc...
-*/
-#if 1
-  // note: for ARM mode only
-  #define NSEEL_LDR_WORD(r, word) \
-    ".word 0xe51f"#r"000\n" \
-    "add pc, pc, #0\n" \
-    ".word "#word"\n"
-#else
-  #define NSEEL_LDR_WORD(r, uint) \
-    "ldr r"#r", ="#uint"\n"
-#endif
 
 /* do we really need to move the sp for these ?*/
 NSEEL_DECLARE_NAKED(nseel_asm_1pdd)
@@ -399,21 +403,32 @@ void nseel_asm_and_op(void)
 }
 void nseel_asm_and_op_end(void) {}
 
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_uplus)
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_uplus_end)
 
-
-void nseel_asm_uplus(void) // this is the same as doing nothing, it seems
+NSEEL_DECLARE_NAKED(nseel_asm_uminus)
 {
+  __asm__
+  (
+    "uminus_start:\n"
+    "   ldr r1, [r0, #4]\n"
+    "   ldr r0, [r0, #0]\n"
+        NSEEL_LDR_WORD(2, NSEEL_SIGN_MASK)
+    "   and r3, r0, r2\n"
+    "   cmp r3, #0\n"
+    "   bne uminus_unset\n"
+    "   orr r0, r0, r2\n"
+    "   b uminus_done\n"
+    "uminus_unset:\n"
+    "   bic r0, r0, r2\n"
+    "uminus_done:\n"
+    "   str r0, [r8, #0]\n"
+    "   str r1, [r8, #4]\n"
+    "   mov r0, r8\n"
+    "   mov pc, lr\n"
+  );
 }
-void nseel_asm_uplus_end(void) {}
-
-
-void nseel_asm_uminus(void)
-{
-
-}
-void nseel_asm_uminus_end(void) {}
-
-
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_uminus_end)
 
 void nseel_asm_sign(void)
 {
@@ -426,7 +441,6 @@ void nseel_asm_sign_end(void) {}
 
 void nseel_asm_bnot(void)
 {
-
 }
 void nseel_asm_bnot_end(void) {}
 

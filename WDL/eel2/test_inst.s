@@ -13,7 +13,7 @@ main:
   stmfd  sp!, {lr}
 
   # addr at:
-  str r0, [r6, #0]
+  orr r0, r0, r2
 
   ldmfd  sp!, {pc}
   
