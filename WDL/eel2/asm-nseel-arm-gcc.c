@@ -51,6 +51,10 @@
   double x(const double a, const double b) NSEEL_OPTIMIZE_ATTR; \
   double x(const double a, const double b)
 
+#ifdef	__cplusplus
+  extern "C" {
+#endif
+
 NSEEL_DECLARE_LOCAL_FP2(nseel_add)
 {
   return a + b;
@@ -411,21 +415,14 @@ NSEEL_DECLARE_NAKED(nseel_asm_uminus)
   __asm__
   (
     "uminus_start:\n"
-    "   ldr r1, [r0, #4]\n"
-    "   ldr r0, [r0, #0]\n"
-        NSEEL_LDR_WORD(2, NSEEL_SIGN_MASK)
-    "   and r3, r0, r2\n"
-    "   cmp r3, #0\n"
-    "   bne uminus_unset\n"
-    "   orr r0, r0, r2\n"
-    "   b uminus_done\n"
-    "uminus_unset:\n"
-    "   bic r0, r0, r2\n"
-    "uminus_done:\n"
-    "   str r0, [r8, #0]\n"
-    "   str r1, [r8, #4]\n"
-    "   mov r0, r8\n"
-    "   mov pc, lr\n"
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
+    NSEEL_LDR_WORD(2, NSEEL_SIGN_MASK)
+    "eor r0, r0, r2\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
   );
 }
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_uminus_end)
@@ -613,3 +610,7 @@ NSEEL_DECLARE_NAKED(_asm_megabuf)
 }
 
 NSEEL_DECLARE_NAKED_NOP(_asm_megabuf_end)
+
+#ifdef	__cplusplus
+  }
+#endif
