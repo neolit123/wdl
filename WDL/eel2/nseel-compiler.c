@@ -223,19 +223,20 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     ".data\n"
     "_flist0:\n"
     " .word " \
-/* 0    */  "nseel_add," \
-/* 4    */  "nseel_sub," \
-/* 8    */  "nseel_mul," \
-/* 12   */  "nseel_div," \
-/* 16   */  "nseel_invsqrt," \
-/* 20   */  "nseel_min," \
-/* 24   */  "nseel_max," \
-/* 28   */  "nseel_floor," \
-/* 32   */  "nseel_and," \
-/* 36   */  "nseel_or," \
-/* 40   */  "nseel_xor," \
-/* 44   */  "nseel_shl," \
-/* 48   */  "nseel_shr" \
+/* 0    */  "nseel_add          ," \
+/* 4    */  "nseel_sub          ," \
+/* 8    */  "nseel_mul          ," \
+/* 12   */  "nseel_div          ," \
+/* 16   */  "nseel_invsqrt      ," \
+/* 20   */  "nseel_min          ," \
+/* 24   */  "nseel_max          ," \
+/* 28   */  "nseel_floor        ," \
+/* 32   */  "nseel_and          ," \
+/* 36   */  "nseel_or           ," \
+/* 40   */  "nseel_xor          ," \
+/* 44   */  "nseel_shl          ," \
+/* 48   */  "nseel_shr          ," \
+/* 52   */  "nseel_mod" \
     " \n"
     ".text\n"
     "stmfd sp!, {r0-r12, lr}\n"

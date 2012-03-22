@@ -91,6 +91,7 @@ NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_or, |)
 NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_xor, ^)
 NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shr, >>)
 NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shl, <<)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_mod, %)
 
 /* other operations with doubles */
 NSEEL_DECLARE_LOCAL_FP2(nseel_add)
@@ -139,7 +140,7 @@ NSEEL_DECLARE_LOCAL_FP2(nseel_invsqrt)
   return (double)(y*(1.5f - (a2*y*y)));
 }
 
-/* do we really need to move the sp for these ?*/
+/* do we really need to move the sp for these ? */
 NSEEL_DECLARE_NAKED(nseel_asm_1pdd)
 {
   __asm__
@@ -398,12 +399,6 @@ void nseel_asm_div_op(void)
 void nseel_asm_div_op_end(void) {}
 
 
-void nseel_asm_mod(void)
-{
-
-}
-void nseel_asm_mod_end(void) {}
-
 NSEEL_DECLARE_NAKED(nseel_asm_shl)
 {
   __asm__
@@ -440,6 +435,24 @@ NSEEL_DECLARE_NAKED(nseel_asm_shr)
 }
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_shr_end)
 
+NSEEL_DECLARE_NAKED(nseel_asm_mod)
+{
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #52]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
+}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_mod_end)
+
 void nseel_asm_mod_op(void)
 {
 
@@ -448,11 +461,23 @@ void nseel_asm_mod_op(void)
 void nseel_asm_mod_op_end(void) {}
 
 
-void nseel_asm_or(void)
+NSEEL_DECLARE_NAKED(nseel_asm_or)
 {
-
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #36]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_or_end(void) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_or_end)
 
 void nseel_asm_or_op(void)
 {
@@ -461,11 +486,23 @@ void nseel_asm_or_op(void)
 void nseel_asm_or_op_end(void) {}
 
 
-void nseel_asm_and(void)
+NSEEL_DECLARE_NAKED(nseel_asm_and)
 {
-
+  __asm__
+  (
+    "ldr r3, [r0, #4]\n"
+    "ldr r2, [r0, #0]\n"
+    "ldr r1, [r6, #4]\n"
+    "ldr r0, [r6, #0]\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #32]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_and_end(void) {}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_and_end)
 
 void nseel_asm_and_op(void)
 {
