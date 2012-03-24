@@ -207,13 +207,23 @@ NSEEL_DECLARE_LOCAL_FP2(nseel_max)
 */
 NSEEL_DECLARE_LOCAL_FP2(nseel_invsqrt)
 {
+#if 1
   const float a2 = a*0.5f;
   float y = (float)a;
-  unsigned int i = *(unsigned int *)&y;
+  int i = *(int *)&y;
 
   i = 0x5f3759df - (i >> 1);
   y = *(float *)&i;
   return (double)(y*(1.5f - (a2*y*y)));
+#else
+  const double a2 = a*0.5f;
+  double y = a;
+  long long i = *(long long *)&y;
+
+  i = 0x5fe6eb50c7aa19f9 - (i >> 1);
+  y = *(double *)&i;
+  return y*(1.5f - (a2*y*y));
+#endif
 }
 
 /* do we really need to move the sp for these ? */
