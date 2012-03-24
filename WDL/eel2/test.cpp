@@ -29,11 +29,11 @@ int main()
   printf("reg\n");
   double *var_ret = NSEEL_VM_regvar(vm,"ret");
 
-  if (var_ret) *var_ret = -432432432.5;
+  if (var_ret) *var_ret = -1234567.12345;
   
   printf("compile\n");
   char buf[1024];
-  strncpy(buf,"ret = ret % 56;",sizeof(buf));
+  strncpy(buf,"ret = abs(ret);",sizeof(buf));
 
   // note that you shouldnt pass a readonly string directly, since it may need to
   // fudge with the string during the compilation (it will always restore it to the

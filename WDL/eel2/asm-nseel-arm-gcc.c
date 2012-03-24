@@ -399,12 +399,21 @@ NSEEL_DECLARE_NAKED(nseel_asm_ceil)
 }
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_ceil_end)
 
-void nseel_asm_abs(void)
+NSEEL_DECLARE_NAKED(nseel_asm_abs)
 {
-
+  __asm__
+  (
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
+    NSEEL_LDR_WORD(2, 0x7fffffff)
+    "and r0, r0, r2\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
 }
-void nseel_asm_abs_end(void) {}
-
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_abs_end)
 
 NSEEL_DECLARE_NAKED(nseel_asm_assign)
 {
