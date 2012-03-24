@@ -5,10 +5,11 @@ CXX = $(CC)
 RUN = arm-elf-run
 DUMP = arm-elf-objdump
 OUT = test.arm
+BE = -mbig-endian
 
 CFLAGS = -Wall -Wno-missing-field-initializers -Wno-unused \
--Wno-sign-compare -Wno-cast-qual -g -save-temps
-LFLAGS = -lm
+-Wno-sign-compare -Wno-cast-qual -g -save-temps $(BE)
+LFLAGS = -lm $(BE)
 
 vpath %.c %.cpp %.h
 

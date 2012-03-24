@@ -6,12 +6,15 @@
   - 2pp, 2ppd (etc..) are untested
 */
 
+#include "sys/param.h"
+
 #ifdef	__cplusplus
   extern "C" {
 #endif
 
 #define NSEEL_SIGN_MASK   0x80000000
 #define NSEEL_NOP         "mov r0, r0\n"
+#define NSEEL_LL          long long
 #define NSEEL_ULL         unsigned long long
 
 #define NSEEL_STR_EXPAND(x) #x
@@ -63,35 +66,108 @@
   double x(const double a) NSEEL_OPTIMIZE_ATTR; \
   double x(const double a)
 
+/* decode doubles */
+typedef union
+{
+	double d;
+  struct
+  {
+    #if (BYTE_ORDER == LITTLE_ENDIAN)
+      #warning ORDER_LITTLE_ENDIAN
+      unsigned int ls;
+      unsigned int ms;
+    #else
+      #warning ORDER_BIG_ENDIAN
+      unsigned int ms;
+      unsigned int ls;
+    #endif
+  } i;
+} nseel_double_st;
+
+/*
+  fast truncation of doubles; removes the fractional part and keeps the sign
+*/
+NSEEL_DECLARE_LOCAL_FP1(nseel_truncate)
+{
+  unsigned int ns;
+  nseel_double_st u;
+	u.d = a;
+	ns = u.i.ms & ~0x80000000;
+
+  // less than zero
+  if (ns < 0x3ff00000)
+    return 0.0;
+
+  // NaN, INF or already integer
+  // if (ns >= 0x43300000)
+    // return a;
+
+	// split and discard fraction
+  if (ns < 0x41400000)
+  {
+		u.i.ms &= ~((1 << (0x413 - (ns >> 20))) - 1);
+		u.i.ls = 0;
+	}
+  else
+  {
+    u.i.ls &= ~((1 << (0x433 - (ns >> 20))) -  1);
+  }
+
+  return u.d;
+}
+
+/*
+  floor and ceil; perform only one or no operation with doubles;
+  branch only 4byte ingeters;
+  the check if a fraction exists can be improved
+*/
+NSEEL_DECLARE_LOCAL_FP1(nseel_floor)
+{
+  nseel_double_st b;
+  nseel_double_st c;
+
+  b.d = a;
+  c.d = nseel_truncate(a);
+
+  if (b.i.ms == c.i.ms && b.i.ls == c.i.ls)
+    return a;
+
+  return (1 & (c.i.ms >> 31)) ? c.d - 1.0 : c.d;
+}
+
+NSEEL_DECLARE_LOCAL_FP1(nseel_ceil)
+{
+  nseel_double_st b;
+  nseel_double_st c;
+
+  b.d = a;
+  c.d = nseel_truncate(a);
+
+  if (b.i.ms == c.i.ms && b.i.ls == c.i.ls)
+    return a;
+
+  return (1 & (c.i.ms >> 31)) ? c.d : c.d + 1.0;
+}
+
 /*
   for now, use the following scheme for the bitwise operators.
-  we leave it to the compiler to make optimizations here - very inefficient
+  we leave it to the compiler to make optimizations here; very inefficient
   for the soft-float lib.
 */
 #define NSEEL_DECLARE_LOCAL_BOP_FP2(x, _op_) \
   NSEEL_DECLARE_LOCAL_FP2(x) \
   { \
-    const NSEEL_ULL dw0 = (NSEEL_ULL)nseel_floor(a); \
-    const NSEEL_ULL dw1 = (NSEEL_ULL)nseel_floor(b); \
+    const NSEEL_LL dw0 = (NSEEL_LL)a; \
+    const NSEEL_LL dw1 = (NSEEL_LL)b; \
     return (double)(dw0 _op_ dw1); \
   }
 
-NSEEL_DECLARE_LOCAL_FP1(nseel_floor)
-{
-  NSEEL_ULL dw;
-  if (a < 0.0)
-    dw = (NSEEL_ULL)(a - 1.0);
-  else
-    dw = (NSEEL_ULL)a;
-  return (double)dw;
-}
-
-NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_and, &)
-NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_or, |)
-NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_xor, ^)
-NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shr, >>)
-NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shl, <<)
-NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_mod, %)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_and,  &)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_or,   |)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_xor,  ^)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shr,  >>)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_shl,  <<)
+NSEEL_DECLARE_LOCAL_BOP_FP2(nseel_mod,  %)
 
 /* other operations with doubles */
 NSEEL_DECLARE_LOCAL_FP2(nseel_add)
@@ -241,7 +317,7 @@ NSEEL_DECLARE_NAKED_NOP(nseel_asm_1pp_end)
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_exec2)
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_exec2_end)
 
-// call the "q3a" version - single precision
+// call the "q3a" version
 NSEEL_DECLARE_NAKED(nseel_asm_invsqrt)
 {
   __asm__
@@ -276,6 +352,42 @@ NSEEL_DECLARE_NAKED(nseel_asm_sqr)
   );
 }
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_sqr_end)
+
+NSEEL_DECLARE_NAKED(nseel_asm_floor)
+{
+  __asm__
+  (
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
+    "mov r2, r0\n"
+    "mov r3, r1\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #56]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
+}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_floor_end)
+
+NSEEL_DECLARE_NAKED(nseel_asm_ceil)
+{
+  __asm__
+  (
+    "ldr r1, [r0, #4]\n"
+    "ldr r0, [r0, #0]\n"
+    "mov r2, r0\n"
+    "mov r3, r1\n"
+    "mov lr, pc\n"
+    "ldr pc, [r4, #60]\n"
+    "str r0, [r8, #0]\n"
+    "str r1, [r8, #4]\n"
+    "mov r0, r8\n"
+    "mov pc, lr\n"
+  );
+}
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_ceil_end)
 
 void nseel_asm_abs(void)
 {

@@ -230,13 +230,15 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
 /* 16   */  "nseel_invsqrt      ," \
 /* 20   */  "nseel_min          ," \
 /* 24   */  "nseel_max          ," \
-/* 28   */  "nseel_floor        ," \
+/* 28   */  "nseel_truncate     ," \
 /* 32   */  "nseel_and          ," \
 /* 36   */  "nseel_or           ," \
 /* 40   */  "nseel_xor          ," \
 /* 44   */  "nseel_shl          ," \
 /* 48   */  "nseel_shr          ," \
-/* 52   */  "nseel_mod" \
+/* 52   */  "nseel_mod          ," \
+/* 56   */  "nseel_floor        ," \
+/* 60   */  "nseel_ceil          " \
     " \n"
     ".text\n"
     "stmfd sp!, {r0-r12, lr}\n"
@@ -513,6 +515,12 @@ static void freeBlocks(llBlock **start);
   void nseel_asm_##x(void);        \
   void nseel_asm_##x##_end(void);    \
 
+  /* faster floor / ceil for arm */
+  #ifdef __arm__
+    DECL_ASMFUNC(floor)
+    DECL_ASMFUNC(ceil)
+  #endif
+  
   DECL_ASMFUNC(sin)
   DECL_ASMFUNC(cos)
   DECL_ASMFUNC(tan)
@@ -682,10 +690,16 @@ static functionType fnTable1[] = {
 
 #if defined(_MSC_VER) && _MSC_VER >= 1400
    { "floor",  nseel_asm_1pdd,nseel_asm_1pdd_end, 1, {&__floor} },
+#elif defined __arm__
+   { "floor",    nseel_asm_floor,nseel_asm_floor_end,   1 },
 #else
    { "floor",  nseel_asm_1pdd,nseel_asm_1pdd_end, 1, {&floor} },
 #endif
+#if defined __arm__
+   { "ceil",    nseel_asm_ceil,nseel_asm_ceil_end,   1 },
+#else
    { "ceil",   nseel_asm_1pdd,nseel_asm_1pdd_end,  1, {&ceil} },
+#endif
 #if defined __ppc__ || defined __arm__
    { "invsqrt",   nseel_asm_invsqrt,nseel_asm_invsqrt_end,  1,  },
 #else

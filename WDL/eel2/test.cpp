@@ -1,5 +1,6 @@
 #include "ns-eel.h"
 #include <string.h>
+#include <math.h>
 
 void NSEEL_HOSTSTUB_EnterMutex()
 {
@@ -28,11 +29,11 @@ int main()
   printf("reg\n");
   double *var_ret = NSEEL_VM_regvar(vm,"ret");
 
-  if (var_ret) *var_ret = 3.1415926535897932384626433832795;
-
+  if (var_ret) *var_ret = -432432432.5;
+  
   printf("compile\n");
   char buf[1024];
-  strncpy(buf,"ret = ((43 & 5) * 43) % 5;",sizeof(buf));
+  strncpy(buf,"ret = ret % 56;",sizeof(buf));
 
   // note that you shouldnt pass a readonly string directly, since it may need to
   // fudge with the string during the compilation (it will always restore it to the
