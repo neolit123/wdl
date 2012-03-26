@@ -681,9 +681,11 @@ static functionType fnTable1[] = {
    { "abs",    nseel_asm_abs,nseel_asm_abs_end,   1 },
    { "min",    nseel_asm_min,nseel_asm_min_end,   2 },
    { "max",    nseel_asm_max,nseel_asm_max_end,   2 },
-#if defined __ppc__  || defined __arm__
+#if defined __ppc__
    { "sign",   nseel_asm_sign,nseel_asm_sign_end,  1, {&eel_zero}} ,
-#else
+#elif defined __arm__
+   { "sign",    nseel_asm_sign,nseel_asm_sign_end,   1 },
+#else  
    { "sign",   nseel_asm_sign,nseel_asm_sign_end,  1, {&g_signs}} ,
 #endif
 	 { "rand",   nseel_asm_1pp,nseel_asm_1pp_end,  1, {&nseel_int_rand}, } ,

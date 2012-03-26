@@ -12,11 +12,6 @@
   #define NSEEL_ENDIAN_LITTLE
 #endif
 
-#ifdef	__cplusplus
-  extern "C" {
-#endif
-
-#define NSEEL_SIGN_MASK   0x80000000
 #define NSEEL_NOP         "mov r0, r0\n"
 #define NSEEL_LL          long long
 #define NSEEL_ULL         unsigned long long
@@ -69,6 +64,10 @@
 #define NSEEL_DECLARE_LOCAL_FP1(x) \
   double x(const double a) NSEEL_OPTIMIZE_ATTR; \
   double x(const double a)
+
+#ifdef	__cplusplus
+  extern "C" {
+#endif
 
 /* decode doubles */
 typedef union
@@ -652,7 +651,7 @@ NSEEL_DECLARE_NAKED(nseel_asm_uminus)
   (
     "ldr r1, [r0, #4]\n"
     "ldr r0, [r0, #0]\n"
-    NSEEL_LDR_WORD(2, NSEEL_SIGN_MASK)
+    NSEEL_LDR_WORD(2, 0x80000000)
     "eor r0, r0, r2\n"
     "str r0, [r8, #0]\n"
     "str r1, [r8, #4]\n"
@@ -662,14 +661,32 @@ NSEEL_DECLARE_NAKED(nseel_asm_uminus)
 }
 NSEEL_DECLARE_NAKED_NOP(nseel_asm_uminus_end)
 
-void nseel_asm_sign(void)
+NSEEL_DECLARE_NAKED(nseel_asm_sign)
 {
-
+  __asm__
+  (
+    ".Lstart:\n"
+    "   ldr r0, [r0, #0]\n"
+        NSEEL_LDR_WORD(3, 0x7fffffff)
+    "   mov r2, r0\n"
+    "   and r0, r0, r3\n"
+    "   cmp r0, #0\n"
+    "   beq .Lend\n"
+    ".Lnot_zero:\n"
+    "   mov r0, r2\n"
+        NSEEL_LDR_WORD(2, 0x80000000)
+    "   and r2, r0, r2\n"
+        NSEEL_LDR_WORD(0, 0x3ff00000)
+    "   orr r0, r0, r2\n"
+    ".Lend:\n"
+    "   mov r1, #0\n"
+    "   str r0, [r8, #0]\n"
+    "   str r1, [r8, #4]\n"
+    "   mov r0, r8\n"
+    "   mov pc, lr\n"
+  );
 }
-void nseel_asm_sign_end(void) {}
-
-
-
+NSEEL_DECLARE_NAKED_NOP(nseel_asm_sign_end)
 
 void nseel_asm_bnot(void)
 {
