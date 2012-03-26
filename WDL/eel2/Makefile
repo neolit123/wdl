@@ -56,6 +56,3 @@ dump:
 
 clean:
 	rm -f $(OBJS) $(OUT)
-
-%.o: %.c %.cpp
-	$(CC) -c -o $@ $^ $(CFLAGS)

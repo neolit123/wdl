@@ -6,7 +6,11 @@
   - 2pp, 2ppd (etc..) are untested
 */
 
-#include "sys/param.h"
+#ifdef __ARMEB__
+  #define NSEEL_ENDIAN_BIG
+#else
+  #define NSEEL_ENDIAN_LITTLE
+#endif
 
 #ifdef	__cplusplus
   extern "C" {
@@ -72,14 +76,12 @@ typedef union
 	double d;
   struct
   {
-    #if (BYTE_ORDER == LITTLE_ENDIAN)
-      #warning ORDER_LITTLE_ENDIAN
-      unsigned int ls;
+    #ifdef NSEEL_ENDIAN_BIG
       unsigned int ms;
+      unsigned int ls;
     #else
-      #warning ORDER_BIG_ENDIAN
-      unsigned int ms;
       unsigned int ls;
+      unsigned int ms;
     #endif
   } i;
 } nseel_double_st;
