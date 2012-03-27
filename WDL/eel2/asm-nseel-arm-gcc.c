@@ -13,6 +13,8 @@
 #endif
 
 #define NSEEL_NOP         "mov r0, r0\n"
+#define NSEEL_L           int
+#define NSEEL_UL          unsigned int
 #define NSEEL_LL          long long
 #define NSEEL_ULL         unsigned long long
 
@@ -158,8 +160,8 @@ NSEEL_DECLARE_LOCAL_FP1(nseel_ceil)
 #define NSEEL_DECLARE_LOCAL_BOP_FP2(x, _op_) \
   NSEEL_DECLARE_LOCAL_FP2(x) \
   { \
-    const NSEEL_LL dw0 = (NSEEL_LL)a; \
-    const NSEEL_LL dw1 = (NSEEL_LL)b; \
+    const NSEEL_L dw0 = (NSEEL_L)a; \
+    const NSEEL_L dw1 = (NSEEL_L)b; \
     return (double)(dw0 _op_ dw1); \
   }
 
