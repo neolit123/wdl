@@ -104,6 +104,10 @@
 
 #include "glue_ppc.h"
 
+#elif defined __arm__
+
+#include "glue_arm.h"
+
 #elif defined(_WIN64) || defined(__LP64__)
 
 #include "glue_x86_64.h"
@@ -516,7 +520,7 @@ static functionType fnTable1[] = {
   { "_equal",  nseel_asm_equal,nseel_asm_equal_end, 2|NSEEL_NPARAMS_FLAG_CONST|BIF_TWOPARMSONFPSTACK_LAZY|BIF_RETURNSBOOL|BIF_FPSTACKUSE(2), {&g_closefact} },
   { "_noteq",  nseel_asm_notequal,nseel_asm_notequal_end, 2|NSEEL_NPARAMS_FLAG_CONST|BIF_TWOPARMSONFPSTACK_LAZY|BIF_RETURNSBOOL|BIF_FPSTACKUSE(2), {&g_closefact} },
 
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
   { "_above",  nseel_asm_above,nseel_asm_above_end, 2|NSEEL_NPARAMS_FLAG_CONST|BIF_LASTPARMONSTACK|BIF_RETURNSBOOL },
   { "_aboeq",  nseel_asm_aboveeq,nseel_asm_aboveeq_end, 2|NSEEL_NPARAMS_FLAG_CONST|BIF_LASTPARMONSTACK|BIF_RETURNSBOOL },
   { "_below",  nseel_asm_below,nseel_asm_below_end, 2|NSEEL_NPARAMS_FLAG_CONST|BIF_TWOPARMSONFPSTACK|BIF_RETURNSBOOL },
@@ -543,7 +547,7 @@ static functionType fnTable1[] = {
   { "_modop",nseel_asm_mod_op,nseel_asm_mod_op_end,2|BIF_LASTPARMONSTACK|BIF_FPSTACKUSE(2)}, 
 
 
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
    { "sin",   nseel_asm_1pdd,nseel_asm_1pdd_end,   1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK, {&sin} },
    { "cos",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK, {&cos} },
    { "tan",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK, {&tan}  },
@@ -579,7 +583,7 @@ static functionType fnTable1[] = {
 #endif
    { "ceil",   nseel_asm_1pdd,nseel_asm_1pdd_end,  1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK, {&ceil} },
 
-#ifdef __ppc__
+#if defined __ppc__ || defined __arm__
    { "invsqrt",   nseel_asm_invsqrt,nseel_asm_invsqrt_end,  1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK,  },
 #else
    { "invsqrt",   nseel_asm_invsqrt,nseel_asm_invsqrt_end,  1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK|BIF_FPSTACKUSE(3), {&negativezeropointfive, &onepointfive} },
@@ -1704,7 +1708,7 @@ static int compileNativeFunctionCall(compileContext *ctx, opcodeRec *op, unsigne
        ))
   {
     // assigning a value (from a variable or other non-computer), can use a fast assign (no denormal/result checking)
-     #ifndef __ppc__
+     #if !defined __ppc__ && !defined __arm__  
        func = nseel_asm_assign_fast;
        func_e = nseel_asm_assign_fast_end;
      #endif

@@ -116,7 +116,9 @@ EEL_F NSEEL_CGEN_CALL nseel_int_rand(EEL_F f)
 
 
 #ifdef __ppc__
-#include "asm-nseel-ppc-gcc.c"
+  #include "asm-nseel-ppc-gcc.c"
+#elif defined __arm__
+  #include "asm-nseel-arm-gcc.c"
 #else
   #ifdef _MSC_VER
     #ifdef _WIN64
