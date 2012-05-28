@@ -67,6 +67,8 @@ while (($line = fgets($in)))
         $sline = substr($sline,1,strlen($sline)-1-strlen($lastchunk));
 
         // get rid of chars we can ignore
+        $sline=preg_replace("/%\d+/","__TEMP_REPLACE__", $sline);
+
         $sline=str_replace("\\n","", $sline);
         $sline=str_replace("\"","", $sline);
         $sline=str_replace("$","", $sline);
@@ -89,7 +91,7 @@ while (($line = fgets($in)))
            $a = strstr($sline,":");
            if ($a) $sline = substr($a,1);
 
-           if ($btfut[$d] != "") $thislbl = $btfut[$d]; 
+           if (isset($btfut[$d]) && $btfut[$d] != "") $thislbl = $btfut[$d]; 
            else $thislbl = "label_" . $labelcnt++;
 
            $btfut[$d]="";
@@ -122,7 +124,7 @@ while (($line = fgets($in)))
 
           $parms = preg_replace("/\\((.{2,3}),(.{2,3})\\)/","($1+$2)",$parms);
 
-          $parms=preg_replace("/EEL_F_SUFFIX ([0-9]+)\\((.*)\\)/","EEL_ASM_TYPE [$2+$1]",$parms);
+          $parms=preg_replace("/EEL_F_SUFFIX (-?[0-9]+)\\((.*)\\)/","EEL_ASM_TYPE [$2+$1]",$parms);
           $parms=preg_replace("/EEL_F_SUFFIX \\((.*)\\)/","EEL_ASM_TYPE [$1]",$parms);
 
           if ($inst == "sh" && $suffix == "ll") { $suffix="l"; $inst="shl"; }
@@ -156,7 +158,7 @@ while (($line = fgets($in)))
             if (substr($parms,-1) == "f")
             {
               $d = (int) substr($parms,0,-1);
-              if ($btfut[$d] != "") $thislbl = $btfut[$d]; 
+              if (isset($btfut[$d]) && $btfut[$d] != "") $thislbl = $btfut[$d]; 
               else $btfut[$d] = $thislbl = "label_" . $labelcnt++;
               $parms = $thislbl;
             }
@@ -211,7 +213,15 @@ while (($line = fgets($in)))
   }
 
   if (!$nowrite)
+  {
+    if (strstr($line,"__TEMP_REPLACE__"))
+    {
+      $a = strstr($line,"//REPLACE=");
+      if ($a === false) die ("__TEMP_REPLACE__ found, no REPLACE=\n");
+      $line=str_replace("__TEMP_REPLACE__",substr($a,10),$line);
+    }
     fputs($out,$line . "\n");
+  }
 }
  
 if ($inblock) echo "Error (ended in __asm__ block???)\n";

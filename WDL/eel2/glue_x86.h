@@ -1,8 +1,10 @@
 #ifndef _NSEEL_GLUE_X86_H_
 #define _NSEEL_GLUE_X86_H_
 
+#define GLUE_MAX_FPSTACK_SIZE 8
 #define GLUE_JMP_TYPE int
 #define GLUE_JMP_OFFSET 0 // offset from end of instruction that is the "source" of the jump
+#define GLUE_JMP_OFFSET_MASK 0xffffffff
 
 static const unsigned char GLUE_JMP_NC[] = { 0xE9, 0,0,0,0, }; // jmp<offset>
 static const unsigned char GLUE_JMP_IF_P1_Z[] = {0x85, 0xC0, 0x0F, 0x84, 0,0,0,0 }; // test eax, eax, jz
@@ -129,13 +131,6 @@ const static unsigned int GLUE_FUNC_LEAVE[1];
     0x83, 0xC4, 16 //  add esp, 16
   };
  
-  static const unsigned char GLUE_POP_FPSTACK_TO_WTP_ANDPUSHADDR[] = { 
-      0xDD, 0x1E, // fstp qword [esi]
-      0x83, 0xEC, 12, // sub esp, 12 
-      0x56, //  push esi
-      0x83, 0xC6, 8, // add esi, 8
-  };
-
   static const unsigned char GLUE_POP_FPSTACK_TO_WTP[] = { 
       0xDD, 0x1E, /* fstp qword [esi] */
       0x83, 0xC6, 8, /* add esi, 8 */ 
@@ -160,7 +155,7 @@ const static unsigned int GLUE_FUNC_LEAVE[1];
       {0xDD,0x07}, // fld qword [edi]
       {0xDD,0x01}, // fld qword [ecx]
     };
-    memcpy(b,tab[wv],GLUE_SET_PX_FROM_WTP_SIZE);
+    memcpy(b,tab[wv],GLUE_PUSH_VAL_AT_PX_TO_FPSTACK_SIZE);
   }
 
 #define GLUE_POP_FPSTACK_TO_WTP_TO_PX_SIZE (GLUE_SET_PX_FROM_WTP_SIZE + sizeof(GLUE_POP_FPSTACK_TO_WTP))
@@ -208,7 +203,7 @@ static int GLUE_RESET_WTP(unsigned char *out, void *ptr)
 #endif
 
 
-static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp) 
+static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp, INT_PTR ramptr) 
 {
   #ifdef _MSC_VER
     #ifndef EEL_NO_CHANGE_FPFLAGS
@@ -219,6 +214,7 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     __asm
     {
       mov eax, cp
+      mov ebx, ramptr
       pushad 
       call eax
       popad
@@ -233,14 +229,17 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
       _controlfp(_RC_CHOP,_MCW_RC);
     #endif
     __asm__(
+          "pushl %%ebx\n"
+          "movl %%ecx, %%ebx\n"
           "pushl %%ebp\n"
           "movl %%esp, %%ebp\n"
           "andl $-16, %%esp\n" // align stack to 16 bytes
           "subl $12, %%esp\n" // call will push 4 bytes on stack, align for that
           "call *%%eax\n"
           "leave\n"
+          "popl %%ebx\n"
           ::
-          "a" (cp): "%ecx","%edx","%esi","%edi");
+          "a" (cp), "c" (ramptr): "%edx","%esi","%edi");
     #ifndef EEL_NO_CHANGE_FPFLAGS
       _controlfp(old_v,_MCW_RC);
     #endif
@@ -269,9 +268,7 @@ static const unsigned char GLUE_LOOP_LOADCNT[]={
 };
 static const unsigned char GLUE_LOOP_CLAMPCNT[]={
         0x81, 0xf9, INT_TO_LECHARS(NSEEL_LOOPFUNC_SUPPORT_MAXLEN), // cmp ecx, NSEEL_LOOPFUNC_SUPPORT_MAXLEN
-        0x0F, 0x8C, 0,0,0,0,  // JL <skipptr>
-};
-static const unsigned char GLUE_LOOP_CLAMPCNT2[]={
+        0x0F, 0x8C, 5,0,0,0,  // JL over-the-mov
         0xB9, INT_TO_LECHARS(NSEEL_LOOPFUNC_SUPPORT_MAXLEN), // mov ecx, NSEEL_LOOPFUNC_SUPPORT_MAXLEN
 };
 static const unsigned char GLUE_LOOP_BEGIN[]={ 
@@ -321,5 +318,8 @@ static const unsigned char GLUE_FLDZ[] = {0xd9, 0xee};
 #define GLUE_HAS_FLD1
 static const unsigned char GLUE_FLD1[] = {0xd9, 0xe8};
 
+static EEL_F negativezeropointfive=-0.5f;
+static EEL_F onepointfive=1.5f;
+#define GLUE_INVSQRT_NEEDREPL &negativezeropointfive, &onepointfive,
 
 #endif

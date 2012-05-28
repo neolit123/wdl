@@ -114,6 +114,7 @@ EEL_F NSEEL_CGEN_CALL nseel_int_rand(EEL_F f)
 //---------------------------------------------------------------------------------------------------------------
 
 
+#ifndef EEL_TARGET_PORTABLE
 
 #ifdef __ppc__
   #include "asm-nseel-ppc-gcc.c"
@@ -131,3 +132,4 @@ EEL_F NSEEL_CGEN_CALL nseel_int_rand(EEL_F f)
   #endif
 #endif
 
+#endif

@@ -1,8 +1,10 @@
 #ifndef _NSEEL_GLUE_X86_64_H_
 #define _NSEEL_GLUE_X86_64_H_
 
+#define GLUE_MAX_FPSTACK_SIZE 8
 #define GLUE_JMP_TYPE int
 #define GLUE_JMP_OFFSET 0 // offset from end of instruction that is the "source" of the jump
+#define GLUE_JMP_OFFSET_MASK 0xffffffff
 
 static const unsigned char GLUE_JMP_NC[] = { 0xE9, 0,0,0,0, }; // jmp<offset>
 static const unsigned char GLUE_JMP_IF_P1_Z[] = {0x85, 0xC0, 0x0F, 0x84, 0,0,0,0 }; // test eax, eax, jz
@@ -107,13 +109,6 @@ const static unsigned int GLUE_FUNC_LEAVE[1];
     0xDD, 0x1C, 0x24 // fstp qword (%rsp)  
   };
 
-  static const unsigned char GLUE_POP_FPSTACK_TO_WTP_ANDPUSHADDR[] = { 
-      0x56, //  push rsi (alignment)
-      0x56, //  push rsi (value used)
-      0xDD, 0x1E, // fstp qword [rsi]
-      0x48, 0x81, 0xC6, 8, 0,0,0, // add rsi, 8
-  };
-
   static const unsigned char GLUE_POP_FPSTACK_TO_WTP[] = { 
       0xDD, 0x1E, /* fstp qword [rsi] */
       0x48, 0x81, 0xC6, 8, 0,0,0,/* add rsi, 8 */ 
@@ -138,7 +133,7 @@ const static unsigned int GLUE_FUNC_LEAVE[1];
       {0xDD,0x07}, // fld qword [rdi]
       {0xDD,0x01}, // fld qword [rcx]
     };
-    memcpy(b,tab[wv],GLUE_SET_PX_FROM_WTP_SIZE);
+    memcpy(b,tab[wv],GLUE_PUSH_VAL_AT_PX_TO_FPSTACK_SIZE);
   }
   static unsigned char GLUE_POP_STACK_TO_FPSTACK[] = {
     0xDD, 0x04, 0x24, // fld qword (%rsp)
@@ -168,8 +163,8 @@ static int GLUE_RESET_WTP(unsigned char *out, void *ptr)
   return 2+sizeof(void *);
 }
 
-extern void win64_callcode(INT_PTR code);
-#define GLUE_CALL_CODE(bp, cp) win64_callcode(cp)
+extern void win64_callcode(INT_PTR code, INT_PTR ram_tab);
+#define GLUE_CALL_CODE(bp, cp, rt) win64_callcode(cp, rt)
 
 static unsigned char *EEL_GLUE_set_immediate(void *_p, const void *newv)
 {
@@ -192,9 +187,7 @@ static const unsigned char GLUE_LOOP_LOADCNT[]={
 };
 static const unsigned char GLUE_LOOP_CLAMPCNT[]={
   0x48, 0x81, 0xf9, INT_TO_LECHARS(NSEEL_LOOPFUNC_SUPPORT_MAXLEN), // cmp rcx, NSEEL_LOOPFUNC_SUPPORT_MAXLEN
-        0x0F, 0x8C, 0,0,0,0,  // JL <skipptr>
-};
-static const unsigned char GLUE_LOOP_CLAMPCNT2[]={
+        0x0F, 0x8C, 10,0,0,0,  // JL over-the-mov
   0x48, 0xB9, INT_TO_LECHARS(NSEEL_LOOPFUNC_SUPPORT_MAXLEN), 0,0,0,0, // mov rcx, NSEEL_LOOPFUNC_SUPPORT_MAXLEN
 };
 static const unsigned char GLUE_LOOP_BEGIN[]={ 
@@ -240,6 +233,12 @@ static const unsigned char GLUE_FXCH[] = {0xd9, 0xc9};
 static const unsigned char GLUE_FLDZ[] = {0xd9, 0xee};
 #define GLUE_HAS_FLD1
 static const unsigned char GLUE_FLD1[] = {0xd9, 0xe8};
+
+
+static EEL_F negativezeropointfive=-0.5f;
+static EEL_F onepointfive=1.5f;
+#define GLUE_INVSQRT_NEEDREPL &negativezeropointfive, &onepointfive,
+
 
 // end of x86-64
 

@@ -1,9 +1,11 @@
 #ifndef _NSEEL_GLUE_PPC_H_
 #define _NSEEL_GLUE_PPC_H_
 
+#define GLUE_MAX_FPSTACK_SIZE 0 // no stack support
 #define GLUE_MAX_JMPSIZE 30000 // maximum relative jump size for this arch (if not defined, any jump is possible)
 #define GLUE_JMP_TYPE short
 #define GLUE_JMP_OFFSET (-4) // jumps are from start of instruction on ppc
+#define GLUE_JMP_OFFSET_MASK 0xfffc
 
 static const unsigned char GLUE_JMP_NC[] = { 0x48,0, 0, 0, }; // b <offset>
 
@@ -130,23 +132,34 @@ static int GLUE_COPY_VALUE_AT_P1_TO_PTR(unsigned char *buf, void *destptr)
 }
 
 
-
-static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp) 
+static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp, INT_PTR rt) 
 {
+  static const double consttab[] = { 
+    NSEEL_CLOSEFACTOR, 
+    4503601774854144.0 /* 0x43300000, 0x80000000, used for integer conversion*/, 
+  };
+  // we could have r18 refer to the current user-stack pointer, someday, perhaps
   __asm__(
-          "stmw r14, -80(r1)\n"
+          "subi r1, r1, 128\n"
+          "stfd f31, 8(r1)\n"
+          "stfd f30, 16(r1)\n"
+          "stmw r13, 32(r1)\n"
           "mtctr %0\n"
           "mr r17, %1\n" 
-	  "subi r17, r17, 8\n"
-          "mflr r5\n" 
-          "stw r5, -84(r1)\n"
-          "subi r1, r1, 88\n"
+          "mr r13, %2\n"
+          "lfd f31, 0(%3)\n"
+          "lfd f30, 8(%3)\n"
+      	  "subi r17, r17, 8\n"
+          "mflr r0\n" 
+          "stw r0, 24(r1)\n"
           "bctrl\n"
-          "addi r1, r1, 88\n"
-          "lwz r5, -84(r1)\n"
-          "lmw r14, -80(r1)\n"
-          "mtlr r5\n"
-            ::"r" (cp), "r" (bp));
+          "lwz r0, 24(r1)\n"
+          "mtlr r0\n"
+          "lmw r13, 32(r1)\n"
+          "lfd f31, 8(r1)\n"
+          "lfd f30, 16(r1)\n"
+          "addi r1, r1, 128\n"
+            ::"r" (cp), "r" (bp), "r" (rt), "r" (consttab));
 };
 
 static unsigned char *EEL_GLUE_set_immediate(void *_p, const void *newv)
@@ -190,11 +203,6 @@ static unsigned char *EEL_GLUE_set_immediate(void *_p, const void *newv)
 
   static const unsigned int GLUE_POP_FPSTACK_TOSTACK[] = {
     0xdc21fff8, // stfdu f1, -8(r1)
-  };
-
-  static const unsigned int GLUE_POP_FPSTACK_TO_WTP_ANDPUSHADDR[] = { 
-    0xdc300008, // stfdu f1, 8(r16)
-    0x9601fff8, // stwu r16, -8(r1)
   };
 
   static const unsigned int GLUE_POP_FPSTACK_TO_WTP[] = { 

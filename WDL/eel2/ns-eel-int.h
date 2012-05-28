@@ -127,6 +127,10 @@ typedef struct {
 
   int want_stack;
   void *stack;  // references a chunk in blocks_data, somewhere within the complete NSEEL_STACK_SIZE aligned at NSEEL_STACK_SIZE
+
+  void *ramPtr;
+
+  int workTable_size; // size (minus padding/extra space) of workTable -- only used if EEL_VALIDATE_WORKTABLE_USE set, but might be handy to have around too
 } codeHandleType;
 
 
@@ -180,6 +184,7 @@ typedef struct _compileContext
   _codeHandleFunctionRec *functions_local, *functions_common;
 
   // state used while generating functions
+  int optimizeDisableFlags;
 
   int isSharedFunctions;
   int function_usesThisPointer;
@@ -192,8 +197,17 @@ typedef struct _compileContext
 
   codeHandleType *tmpCodeHandle;
   
-  EEL_F *ram_blocks[NSEEL_RAM_BLOCKS];
-  int ram_needfree;
+  struct
+  {
+    int needfree;
+    int __pad;
+    double closefact;
+    EEL_F *blocks[NSEEL_RAM_BLOCKS];
+  } ram_state
+#ifdef __GNUC__
+    __attribute__ ((aligned (8)))
+#endif
+   ;
 
   void *gram_blocks;
 
@@ -282,10 +296,10 @@ struct  lextab {
 };
 extern struct lextab nseel_lextab;
 
-EEL_F * NSEEL_CGEN_CALL __NSEEL_RAMAlloc(EEL_F **blocks, int w);
-EEL_F * NSEEL_CGEN_CALL __NSEEL_RAMAllocGMEM(EEL_F ***blocks, int w);
+EEL_F * NSEEL_CGEN_CALL __NSEEL_RAMAlloc(EEL_F **blocks, unsigned int w);
+EEL_F * NSEEL_CGEN_CALL __NSEEL_RAMAllocGMEM(EEL_F ***blocks, unsigned int w);
 EEL_F * NSEEL_CGEN_CALL __NSEEL_RAM_MemSet(EEL_F **blocks,EEL_F *dest, EEL_F *v, EEL_F *lenptr);
-EEL_F * NSEEL_CGEN_CALL __NSEEL_RAM_MemFree(int *flag, EEL_F *which);
+EEL_F * NSEEL_CGEN_CALL __NSEEL_RAM_MemFree(void *blocks, EEL_F *which);
 EEL_F * NSEEL_CGEN_CALL __NSEEL_RAM_MemCpy(EEL_F **blocks,EEL_F *dest, EEL_F *src, EEL_F *lenptr);
 
 

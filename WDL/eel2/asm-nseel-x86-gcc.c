@@ -1,24 +1,28 @@
 /* note: only EEL_F_SIZE=8 is now supported (no float EEL_F's) */
 
+#ifndef AMD64ABI
+#define X64_EXTRA_STACK_SPACE 32 // win32 requires allocating space for 4 parameters at 8 bytes each, even though we pass via register
+#endif
+
 void nseel_asm_1pdd(void)
 {
   __asm__(
      
     "movl $0xfefefefe, %edi\n" 
 #ifdef TARGET_X64
-    "subl $128, %rsp\n"
-    "fstpl (%rsp)\n"
-    "movq (%rsp), %xmm0\n"
+    "fstpl (%rsi)\n"
+    "movq (%rsi), %xmm0\n"
     #ifdef AMD64ABI
        "movl %rsi, %r15\n"
        "call *%edi\n" 
        "movl %r15, %rsi\n"
     #else
+       "subl X64_EXTRA_STACK_SPACE, %rsp\n"
        "call *%edi\n" 
+       "addl X64_EXTRA_STACK_SPACE, %rsp\n"
     #endif
-    "movq xmm0, (%rsp)\n"
-    "fldl (%rsp)\n"
-    "addl $128, %rsp\n"
+    "movq xmm0, (%rsi)\n"
+    "fldl (%rsi)\n"
 #else
     "subl $16, %esp\n"
     "fstpl (%esp)\n"
@@ -36,21 +40,21 @@ void nseel_asm_2pdd(void)
     
     "movl $0xfefefefe, %edi\n"
 #ifdef TARGET_X64
-    "subl $128, %rsp\n"
-    "fstpl 8(%rsp)\n"
-    "fstpl (%rsp)\n"
-    "movq 8(%rsp), %xmm1\n"
-    "movq (%rsp), %xmm0\n"
+    "fstpl 8(%rsi)\n"
+    "fstpl (%rsi)\n"
+    "movq 8(%rsi), %xmm1\n"
+    "movq (%rsi), %xmm0\n"
     #ifdef AMD64ABI
       "movl %rsi, %r15\n"
       "call *%edi\n"
       "movl %r15, %rsi\n"
     #else
+      "subl X64_EXTRA_STACK_SPACE, %rsp\n"
       "call *%edi\n"
+      "addl X64_EXTRA_STACK_SPACE, %rsp\n"
     #endif
-    "movq xmm0, (%rsp)\n"
-    "fldl (%rsp)\n"
-    "addl $128, %rsp\n"
+    "movq xmm0, (%rsi)\n"
+    "fldl (%rsi)\n"
 #else
     "subl $16, %esp\n"
     "fstpl 8(%esp)\n"
@@ -69,10 +73,9 @@ void nseel_asm_2pdds(void)
     
     "movl $0xfefefefe, %eax\n"
 #ifdef TARGET_X64
-    "subl $128, %rsp\n"
-    "fstpl (%rsp)\n"
+    "fstpl (%rsi)\n"
     "movq (%rdi), %xmm0\n"
-    "movq (%rsp), %xmm1\n"
+    "movq (%rsi), %xmm1\n"
     #ifdef AMD64ABI
       "movl %rsi, %r15\n"
       "movl %rdi, %r14\n"
@@ -81,11 +84,12 @@ void nseel_asm_2pdds(void)
       "movq xmm0, (%r14)\n"
       "movl %r14, %rax\n" /* set return value */
     #else
+      "subl X64_EXTRA_STACK_SPACE, %rsp\n"
       "call *%eax\n"
       "movq xmm0, (%edi)\n"
       "movl %edi, %eax\n" /* set return value */
+      "addl X64_EXTRA_STACK_SPACE, %rsp\n"
     #endif
-    "addl $128, %rsp\n"
 #else
     "subl $8, %esp\n"
     "fstpl (%esp)\n"
@@ -124,7 +128,6 @@ void nseel_asm_invsqrt(void)
     "fsts (%esi)\n"
 #ifdef TARGET_X64
     "movl 0xfefefefe, %rax\n"
-    "subl %ecx, %ecx\n"
     "fmul" EEL_F_SUFFIX " (%rax)\n"
 #else
     "fmul" EEL_F_SUFFIX " (0xfefefefe)\n"
@@ -237,36 +240,32 @@ void nseel_asm_assign(void)
     "movll (%rax), %rdx\n"
     "movll %rdx, %rcx\n"
     "shrl $32, %rdx\n"
+    "addl $0x00100000, %edx\n"
     "andl $0x7FF00000, %edx\n"
-    "jz 1f\n"
-    "cmpl $0x7FF00000, %edx\n"
-    "je 1f\n"
-    "jmp 0f\n"
-    "1:\n"
-    "subl %rcx, %rcx\n"
+    "cmpl $0x00100000, %edx\n"
+    "movll %rdi, %rax\n"
+    "jg 0f\n"
+      "subl %rcx, %rcx\n"
     "0:\n"
     "movll %rcx, (%edi)\n"
-    "movll %rdi, %rax\n"
     );
 
 #else
 
   __asm__(
-    "movl 4(%eax), %edx\n"
     "movl (%eax), %ecx\n"
-    "andl  $0x7ff00000, %edx\n"
-    "jz 1f\n"   // if exponent=zero, zero
-    "cmpl  $0x7ff00000, %edx\n"
-    "je 1f\n" // if exponent=all 1s, zero
-    "movl 4(%eax), %edx\n" // reread
-    "jmp 0f\n"
-    "1:\n"
-    "subl %ecx, %ecx\n"
-    "subl %edx, %edx\n"
+    "movl 4(%eax), %edx\n"
+    "movl %edx, %eax\n"
+    "addl $0x00100000, %eax\n" // if exponent is zero, make exponent 0x7ff, if 7ff, make 7fe
+    "andl $0x7ff00000, %eax\n" 
+    "cmpl $1, %eax\n"
+    "jg 0f\n"
+      "subl %ecx, %ecx\n"
+      "subl %edx, %edx\n"
     "0:\n"
+    "movl %edi, %eax\n"
     "movl %ecx, (%edi)\n"
     "movl %edx, 4(%edi)\n"
-    "movl %edi, %eax\n"
   );
 
 #endif
@@ -276,40 +275,25 @@ void nseel_asm_assign_end(void) {}
 //---------------------------------------------------------------------------------------------------------------
 void nseel_asm_assign_fromfp(void)
 {
-#ifdef TARGET_X64
-
-  __asm__(
-    "fstpl (%rdi)\n"
-    "movll (%rdi), %rdx\n"
-    "movll $0x7FF0000000000000, %r15\n"
-    "andll %r15, %rdx\n"
-    "jz 1f\n"
-    "cmpll %r15, %rdx\n"
-    "jne 0f\n"
-    "1:"
-    "subll %rcx, %rcx\n"
-    "movll %rcx, (%rdi)\n"
-    "0:\n"
-    "movll %rdi, %rax\n"
-    );
-
-#else
-
   __asm__(
     "fstpl (%edi)\n"
     "movl 4(%edi), %edx\n"
-    "andl $0x7ff00000, %edx\n"
-    "jz 1f\n"
-    "cmpl $0x7ff00000, %edx\n"
-    "jne 0f\n"
-    "1:\n"
+    "addl $0x00100000, %edx\n"
+    "andl $0x7FF00000, %edx\n"
+    "cmpl $0x00100000, %edx\n"
+    "movl %edi, %eax\n"
+    "jg 0f\n"
+#ifdef TARGET_X64
+      "subll %rdx, %rdx\n"
+      "movll %rdx, (%rdi)\n"
+#else
       "fldz\n"
       "fstpl (%edi)\n"
-    "0:\n"
-    "movl %edi, %eax\n"
-  );
-
 #endif
+    "0:\n"
+    );
+
+
 }
 void nseel_asm_assign_fromfp_end(void) {}
 
@@ -437,9 +421,6 @@ void nseel_asm_mod(void)
     "fabs\n"
     "fistpl 4(%esi)\n"
     "xorl %edx, %edx\n"
-#ifdef TARGET_X64
-    "subl %eax, %eax\n"
-#endif
     "cmpl $0, (%esi)\n"
     "je 0f\n" // skip devide, set return to 0
     "movl 4(%esi), %eax\n"
@@ -489,9 +470,6 @@ void nseel_asm_mod_op(void)
     "fistpl (%edi)\n"
     "fabs\n"
     "fistpl (%esi)\n"
-#ifdef TARGET_X64
-    "subl %eax, %eax\n"
-#endif
     "xorl %edx, %edx\n"
     "cmpl $0, (%edi)\n"
     "je 0f\n" // skip devide, set return to 0
@@ -673,8 +651,8 @@ void nseel_asm_sign(void)
 #ifdef TARGET_X64
 
 
-    "fst" EEL_F_SUFFIX " -8(%rsp)\n"
-    "mov" EEL_F_SUFFIX " -8(%rsp), %rdx\n"
+    "fst" EEL_F_SUFFIX " (%rsi)\n"
+    "mov" EEL_F_SUFFIX " (%rsi), %rdx\n"
     "movll $0x7FFFFFFFFFFFFFFF, %rcx\n"
     "testll %rcx, %rdx\n"
     "jz 0f\n" // zero zero, return the value passed directly
@@ -689,8 +667,8 @@ void nseel_asm_sign(void)
 
 #else
 
-    "fsts -4(%esp)\n"
-    "movl -4(%esp), %ecx\n"
+    "fsts (%esi)\n"
+    "movl (%esi), %ecx\n"
     "movl $0x7FFFFFFF, %edx\n"
     "testl %edx, %ecx\n"
     "jz 0f\n" // zero zero, return the value passed directly
@@ -760,7 +738,7 @@ void nseel_asm_repeat(void)
 {
   __asm__(
 #ifdef TARGET_X64
-    "fistpll (%esi)\n"
+    "fistpll (%rsi)\n"
     "movll (%rsi), %rcx\n"
 #else
     "fistpl (%esi)\n"
@@ -900,10 +878,9 @@ void nseel_asm_equal(void)
     "fsub\n"
     "fabs\n"
 #ifdef TARGET_X64
-    "movl $0xfefefefe, %rax\n"
-    "fcomp" EEL_F_SUFFIX " (%rax)\n" //[g_closefact]
+    "fcomp" EEL_F_SUFFIX " -8(%r12)\n" //[g_closefact]
 #else
-    "fcomp" EEL_F_SUFFIX " (0xfefefefe)\n" //[g_closefact]
+    "fcomp" EEL_F_SUFFIX " -8(%ebx)\n" //[g_closefact]
 #endif
     "fstsw %ax\n"
     "andl $256, %eax\n" // old behavior: if 256 set, true (NaN means true)
@@ -918,10 +895,9 @@ void nseel_asm_notequal(void)
     "fsub\n"
     "fabs\n"
 #ifdef TARGET_X64
-    "movl $0xfefefefe, %rax\n"
-    "fcomp" EEL_F_SUFFIX " (%rax)\n" //[g_closefact]
+    "fcomp" EEL_F_SUFFIX " -8(%r12)\n" //[g_closefact]
 #else
-    "fcomp" EEL_F_SUFFIX " (0xfefefefe)\n" //[g_closefact]
+    "fcomp" EEL_F_SUFFIX " -8(%ebx)\n" //[g_closefact]
 #endif
     "fstsw %ax\n"
     "andl $256, %eax\n"
@@ -974,10 +950,9 @@ void nseel_asm_fptobool(void)
   __asm__(
     "fabs\n"
 #ifdef TARGET_X64
-    "movl $0xfefefefe, %rax\n"
-    "fcomp" EEL_F_SUFFIX " (%rax)\n" //[g_closefact]
+    "fcomp" EEL_F_SUFFIX " -8(%r12)\n" //[g_closefact]
 #else
-    "fcomp" EEL_F_SUFFIX " (0xfefefefe)\n" //[g_closefact]
+    "fcomp" EEL_F_SUFFIX " -8(%ebx)\n" //[g_closefact]
 #endif
     "fstsw %ax\n"
     "andl $256, %eax\n"
@@ -992,10 +967,10 @@ void nseel_asm_min(void)
   __asm__(
     "fld" EEL_F_SUFFIX " (%edi)\n"
     "fcomp" EEL_F_SUFFIX " (%eax)\n"
-    "pushl %eax\n"
+    "movl %eax, %ecx\n"
     "fstsw %ax\n"
     "testl $256, %eax\n"
-    "popl %eax\n"
+    "movl %ecx, %eax\n"
     "jz 0f\n"
     "movl %edi, %eax\n"
     "0:\n"
@@ -1009,10 +984,10 @@ void nseel_asm_max(void)
   __asm__(
     "fld" EEL_F_SUFFIX " (%edi)\n"
     "fcomp" EEL_F_SUFFIX " (%eax)\n"
-    "pushl %eax\n"
+    "movl %eax, %ecx\n"
     "fstsw %ax\n"
     "testl $256, %eax\n"
-    "popl %eax\n"
+    "movl %ecx, %eax\n"
     "jnz 0f\n"
     "movl %edi, %eax\n"
     "0:\n"
@@ -1072,21 +1047,18 @@ void _asm_generic3parm(void)
     "movl %ecx, %rsi\n" // second parameter = parm
     "movl %rax, %rcx\n" // fourth parameter = parm
     "movl $0xfefefefe, %rax\n" // call function
-    "subl $128, %rsp\n"
     "call *%rax\n"
 
     "movl %r15, %rsi\n"
-    "addl $128, %rsp\n"
-
 #else
     "movl %ecx, %edx\n" // second parameter = parm
     "movl $0xfefefefe, %ecx\n" // first parameter= context
     "movl %rdi, %r8\n" // third parameter = parm
     "movl %rax, %r9\n" // fourth parameter = parm
     "movl $0xfefefefe, %edi\n" // call function
-    "subl $128, %rsp\n"
+    "subl X64_EXTRA_STACK_SPACE, %rsp\n"
     "call *%edi\n"
-    "addl $128, %rsp\n"
+    "addl X64_EXTRA_STACK_SPACE, %rsp\n"
 #endif
 
 #else
@@ -1094,9 +1066,9 @@ void _asm_generic3parm(void)
     "movl $0xfefefefe, %edx\n"
     "pushl %eax\n" // push parameter
     "pushl %edi\n" // push parameter
+    "movl $0xfefefefe, %edi\n"
     "pushl %ecx\n" // push parameter
     "pushl %edx\n" // push context pointer
-    "movl $0xfefefefe, %edi\n"
     "call *%edi\n"
     "addl $16, %esp\n"
     
@@ -1117,26 +1089,27 @@ void _asm_generic3parm_retd(void)
     "movl %ecx, %rsi\n" // second parameter = parm
     "movl %rax, %rcx\n" // fourth parameter = parm
     "movl $0xfefefefe, %rax\n" // call function
-    "subl $128, %rsp\n"
     "call *%rax\n"
     "movl %r15, %rsi\n"
+    "movq xmm0, (%r15)\n"
+    "fldl (%r15)\n"
 #else
     "movl %ecx, %edx\n" // second parameter = parm
     "movl $0xfefefefe, %ecx\n" // first parameter= context
     "movl %rdi, %r8\n" // third parameter = parm
     "movl %rax, %r9\n" // fourth parameter = parm
     "movl $0xfefefefe, %edi\n" // call function
-    "subl $128, %rsp\n"
+    "subl X64_EXTRA_STACK_SPACE, %rsp\n"
     "call *%edi\n"
+    "addl X64_EXTRA_STACK_SPACE, %rsp\n"
+    "movq xmm0, (%rsi)\n"
+    "fldl (%rsi)\n"
 #endif
-    "movq xmm0, (%rsp)\n"
-    "fldl (%rsp)\n"
-    "addl $128, %rsp\n"
 #else
     
     "subl $16, %esp\n"
-    "movl %edi, 8(%esp)\n"
     "movl $0xfefefefe, %edx\n"
+    "movl %edi, 8(%esp)\n"
     "movl $0xfefefefe, %edi\n"
     "movl %eax, 12(%esp)\n"
     "movl %ecx, 4(%esp)\n"
@@ -1161,28 +1134,26 @@ void _asm_generic2parm(void) // this prob neds to be fixed for ppc
     "movl $0xfefefefe, %edi\n" // first parameter= context
     "movl %rax, %rdx\n" // third parameter = parm
     "movl $0xfefefefe, %rcx\n" // call function
-    "subl $128, %rsp\n"
     "call *%rcx\n"
     "movl %r15, %rsi\n"
-    "addl $128, %rsp\n"
 #else
     "movl $0xfefefefe, %ecx\n" // first parameter= context
     "movl %edi, %edx\n" // second parameter = parm
     "movl %rax, %r8\n" // third parameter = parm
     "movl $0xfefefefe, %edi\n" // call function
-    "subl $128, %rsp\n"
+    "subl X64_EXTRA_STACK_SPACE, %rsp\n"
     "call *%edi\n"
-    "addl $128, %rsp\n"
+    "addl X64_EXTRA_STACK_SPACE, %rsp\n"
 #endif
 #else
     
     "movl $0xfefefefe, %edx\n"
+    "movl $0xfefefefe, %ecx\n"
     "subl $4, %esp\n" // keep stack aligned
     "pushl %eax\n" // push parameter
     "pushl %edi\n" // push parameter
     "pushl %edx\n" // push context pointer
-    "movl $0xfefefefe, %edi\n"
-    "call *%edi\n"
+    "call *%ecx\n"
     "addl $16, %esp\n"
     
 #endif
@@ -1201,20 +1172,21 @@ void _asm_generic2parm_retd(void)
     "movl $0xfefefefe, %rdi\n" // first parameter= context
     "movl $0xfefefefe, %rcx\n" // call function
     "movl %rax, %rdx\n" // third parameter = parm
-    "subl $128, %rsp\n"
     "call *%rcx\n"
     "movl %r15, %rsi\n"
+    "movq xmm0, (%r15)\n"
+    "fldl (%r15)\n"
 #else
     "movl %rdi, %rdx\n" // second parameter = parm
     "movl $0xfefefefe, %rcx\n" // first parameter= context
     "movl $0xfefefefe, %rdi\n" // call function
     "movl %rax, %r8\n" // third parameter = parm
-    "subl $128, %rsp\n"
+    "subl X64_EXTRA_STACK_SPACE, %rsp\n"
     "call *%edi\n"
+    "addl X64_EXTRA_STACK_SPACE, %rsp\n"
+    "movq xmm0, (%rsi)\n"
+    "fldl (%rsi)\n"
 #endif
-    "movq xmm0, (%rsp)\n"
-    "fldl (%rsp)\n"
-    "addl $128, %rsp\n"
 #else
     
     "subl $16, %esp\n"
@@ -1243,27 +1215,25 @@ void _asm_generic1parm(void)
     "movl $0xfefefefe, %rdi\n" // first parameter= context
     "movl %rsi, %r15\n"
     "movl %eax, %rsi\n" // second parameter = parm
-    "subl $128, %rsp\n"
     "movl $0xfefefefe, %rcx\n" // call function
     "call *%rcx\n"
     "movl %r15, %rsi\n"
-    "addl $128, %rsp\n"
 #else
     "movl $0xfefefefe, %ecx\n" // first parameter= context
     "movl %eax, %edx\n" // second parameter = parm
     "movl $0xfefefefe, %edi\n" // call function
-    "subl $128, %rsp\n"
+    "subl X64_EXTRA_STACK_SPACE, %rsp\n"
     "call *%edi\n"
-    "addl $128, %rsp\n"
+    "addl X64_EXTRA_STACK_SPACE, %rsp\n"
 #endif
 #else
     
     "movl $0xfefefefe, %edx\n"
     "subl $8, %esp\n" // keep stack aligned
+    "movl $0xfefefefe, %ecx\n"
     "pushl %eax\n" // push parameter
     "pushl %edx\n" // push context pointer
-    "movl $0xfefefefe, %edi\n"
-    "call *%edi\n"
+    "call *%ecx\n"
     "addl $16, %esp\n"
     
 #endif
@@ -1277,7 +1247,6 @@ void _asm_generic1parm_retd(void) // 1 parameter returning double
 {
   __asm__(
 #ifdef TARGET_X64
-    "subl $128, %rsp\n"
 #ifdef AMD64ABI
     "movl $0xfefefefe, %rdi\n" // first parameter = context pointer
     "movl $0xfefefefe, %rcx\n" // function address
@@ -1287,25 +1256,28 @@ void _asm_generic1parm_retd(void) // 1 parameter returning double
     "call *%rcx\n"
     
     "movl %r15, %rsi\n"
+    "movq xmm0, (%r15)\n"
+    "fldl (%r15)\n"
 #else
     "movl $0xfefefefe, %ecx\n" // first parameter= context
     "movl $0xfefefefe, %edi\n" // call function
 
     "movl %rax, %rdx\n" // second parameter = parm
 
+    "subl X64_EXTRA_STACK_SPACE, %rsp\n"
     "call *%edi\n"
+    "addl X64_EXTRA_STACK_SPACE, %rsp\n"
+    "movq xmm0, (%rsi)\n"
+    "fldl (%rsi)\n"
 #endif
-    "movq xmm0, (%rsp)\n"
-    "fldl (%rsp)\n"
-    "addl $128, %rsp\n"
 #else
     
     "movl $0xfefefefe, %edx\n" // context pointer
-    "movl $0xfefefefe, %edi\n" // func-addr
+    "movl $0xfefefefe, %ecx\n" // func-addr
     "subl $16, %esp\n"
     "movl %eax, 4(%esp)\n" // push parameter
     "movl %edx, (%esp)\n" // push context pointer
-    "call *%edi\n"
+    "call *%ecx\n"
     "addl $16, %esp\n"
     
 #endif
@@ -1329,105 +1301,102 @@ void _asm_megabuf(void)
 
 #ifdef AMD64ABI
 
-    "movl $0xfefefefe, %rdi\n" // first parameter = context pointer
+    "fadd" EEL_F_SUFFIX " -8(%r12)\n"
 
-    "movl $0xfefefefe, %rdx\n"
-
-    "fadd" EEL_F_SUFFIX " (%rdx)\n"
     "fistpl (%rsi)\n"
-    "subll %rdx, %rdx\n"
 
     // check if (%rsi) is in range, and buffer available, otherwise call function
     "movl (%rsi), %edx\n"
-    "testl $0xff800000, %rdx\n" // 0xFFFFFFFF - (NSEEL_RAM_BLOCKS*NSEEL_RAM_ITEMSPERBLOCK - 1)
-    "jnz 1f\n"
-    "movll %rdx, %rax\n"
-    "shrll $13, %rax\n"     // log2(NSEEL_RAM_ITEMSPERBLOCK) - log2(sizeof(void*))
-    "andll $0x3F8, %rax\n"  // (NSEEL_RAM_BLOCKS-1)*sizeof(void*)
-    "movll (%rdi, %rax), %rax\n"
-    "testl %rax, %rax\n"
-    "jz 1f\n"
-    "andll $0xFFFF, %rdx\n" // (NSEEL_RAM_ITEMSPERBLOCK-1)
-    "shlll $3, %rdx\n"      // log2(sizeof(EEL_F))
-    "addll %rdx, %rax\n"
-    "jmp 0f\n"
-
-    
-    "1:\n"
-    "movl %rsi, %r15\n" // save rsi
-    "movl %rdx, %esi\n" // esi becomes second parameter (edi is first, context pointer)
-    "movl $0xfefefefe, %edx\n"
-    "subl $128, %rsp\n"
-    "call *%edx\n"
-    "movl %r15, %rsi\n" // restore rsi
-    "addl $128, %rsp\n"
+    "cmpl %1, %rdx\n"      //REPLACE=((NSEEL_RAM_BLOCKS*NSEEL_RAM_ITEMSPERBLOCK))
+    "jae 0f\n"
+      "movll %rdx, %rax\n"
+      "shrll %2, %rax\n"     //REPLACE=(NSEEL_RAM_ITEMSPERBLOCK_LOG2 - 3/*log2(sizeof(void *))*/   )
+      "andll %3, %rax\n"     //REPLACE=((NSEEL_RAM_BLOCKS-1)*8 /*sizeof(void*)*/                   )
+      "movll (%r12, %rax), %rax\n"
+      "testl %rax, %rax\n"
+      "jnz 1f\n"   
     "0:\n"
+      "movl $0xfefefefe, %rax\n"
+      "movl %r12, %rdi\n" // set first parm to ctx
+      "movl %rsi, %r15\n" // save rsi
+      "movl %rdx, %esi\n" // esi becomes second parameter (edi is first, context pointer)
+      "call *%rax\n"
+      "movl %r15, %rsi\n" // restore rsi
+      "jmp 2f\n"
+    "1:\n"
+      "andll %4, %rdx\n"      //REPLACE=(NSEEL_RAM_ITEMSPERBLOCK-1)
+      "shlll $3, %rdx\n"      // 3 is log2(sizeof(EEL_F))
+      "addll %rdx, %rax\n"
+    "2:\n"
 
 #else
-    "movl $0xfefefefe, %ecx\n" // first parameter = context pointer
-    "movl $0xfefefefe, %edx\n"
-    "subll %rdi, %rdi\n"
 
-    "fadd" EEL_F_SUFFIX " (%rdx)\n"
+    "fadd" EEL_F_SUFFIX " -8(%r12)\n"
 
-    "fistpl (%esi)\n"
+    "fistpl (%rsi)\n"
 
-    // check if (%esi) is in range...
+    // check if (%rsi) is in range...
     "movl (%rsi), %edi\n"
-    "testl $0xff800000, %edi\n"   // 0xFFFFFFFF - (NSEEL_RAM_BLOCKS*NSEEL_RAM_ITEMSPERBLOCK - 1)
-    "jnz 1f\n"
-    "movll %rdi, %rax\n"
-    "shrll $13, %rax\n"           // log2(NSEEL_RAM_ITEMSPERBLOCK) - log2(sizeof(void*))
-    "andll $0x3F8, %rax\n"        // (NSEEL_RAM_BLOCKS-1)*sizeof(void*)
-    "movll (%rcx, %rax), %rax\n"
-    "testl %rax, %rax\n"
-    "jz 1f\n"
-    "andll $0xFFFF, %rdi\n"   // (NSEEL_RAM_ITEMSPERBLOCK-1)
-    "shlll $3, %rdi\n"        // log2(sizeof(EEL_F))
-    "addll %rdi, %rax\n"
-    "jmp 0f\n"
-
+    "cmpl %1, %edi\n"       //REPLACE=((NSEEL_RAM_BLOCKS*NSEEL_RAM_ITEMSPERBLOCK))
+    "jae 0f\n"
+      "movll %rdi, %rax\n"
+      "shrll %2, %rax\n"       //REPLACE=(NSEEL_RAM_ITEMSPERBLOCK_LOG2 - 3/*log2(sizeof(void *))*/   )
+      "andll %3, %rax\n"       //REPLACE=((NSEEL_RAM_BLOCKS-1)*8 /*sizeof(void*)*/                   )
+      "movll (%r12, %rax), %rax\n"
+      "testl %rax, %rax\n"
+      "jnz 1f\n"
+    "0:\n"
+      "movl $0xfefefefe, %rax\n" // function ptr
+      "movl %r12, %rcx\n" // set first parm to ctx
+      "movl %rdi, %rdx\n" // rdx is second parameter (rcx is first)
+      "subl X64_EXTRA_STACK_SPACE, %rsp\n"
+      "call *%rax\n"
+      "addl X64_EXTRA_STACK_SPACE, %rsp\n"
+      "jmp 2f\n"
     "1:\n"
-    "movl %rdi, %rdx\n" // rdx is second parameter (rcx is first)
-    "movl $0xfefefefe, %edi\n" // function ptr
-    "subl $128, %rsp\n"
-    "call *%edi\n"
-    "addl $128, %rsp\n"
-    "0:"
+      "andll %4, %rdi\n"       //REPLACE=(NSEEL_RAM_ITEMSPERBLOCK-1)
+      "shlll $3, %rdi\n"       // 3 is log2(sizeof(EEL_F))
+      "addll %rdi, %rax\n"
+    "2:\n"
 #endif
 
 
 #else
-    "movl $0xfefefefe, %edx\n"
-    "fadd" EEL_F_SUFFIX " (0xfefefefe)\n"
-    "fistpl (%esi)\n"
+    "fadd" EEL_F_SUFFIX " -8(%%ebx)\n"
+    "fistpl (%%esi)\n"
 
     // check if (%esi) is in range, and buffer available, otherwise call function
-    "movl (%esi), %edi\n"
-    "testl $0xff800000, %edi\n"  // 0xFFFFFFFF - (NSEEL_RAM_BLOCKS*NSEEL_RAM_ITEMSPERBLOCK - 1)
-    "jnz 1f\n"
+    "movl (%%esi), %%edi\n"
+    "cmpl %0, %%edi\n"     //REPLACE=((NSEEL_RAM_BLOCKS*NSEEL_RAM_ITEMSPERBLOCK))
+    "jae 0f\n"
 
-    "movl %edi, %eax\n"
-    "shrl $14, %eax\n"            // log2(NSEEL_RAM_ITEMSPERBLOCK) - log2(sizeof(void *))
-    "andl $0x1FC, %eax\n"    // (NSEEL_RAM_BLOCKS-1)*sizeof(void*)
-    "movl (%edx, %eax), %eax\n"
-    "testl %eax, %eax\n"
-    "jz 1f\n"
-    "andl $0xFFFF, %edi\n"  // (NSEEL_RAM_ITEMSPERBLOCK-1)
-    "shll $3, %edi\n"       // log2(sizeof(EEL_F))
-    "addl %edi, %eax\n"
-    "jmp 0f\n"
-
-
+      "movl %%edi, %%eax\n"
+      "shrl %1, %%eax\n"      //REPLACE=(NSEEL_RAM_ITEMSPERBLOCK_LOG2 - 2/*log2(sizeof(void *))*/   )
+      "andl %2, %%eax\n"      //REPLACE=((NSEEL_RAM_BLOCKS-1)*4 /*sizeof(void*)*/                   )
+      "movl (%%ebx, %%eax), %%eax\n"
+      "testl %%eax, %%eax\n"
+      "jnz 1f\n"
+    "0:\n"
+      "subl $8, %%esp\n" // keep stack aligned
+      "movl $0xfefefefe, %%ecx\n"
+      "pushl %%edi\n" // parameter
+      "pushl %%ebx\n" // push context pointer
+      "call *%%ecx\n"
+      "addl $16, %%esp\n"
+      "jmp 2f\n"
     "1:\n"
-    "subl $8, %esp\n" // keep stack aligned
-    "pushl %edi\n" // parameter
-    "pushl %edx\n" // push context pointer
-    "movl $0xfefefefe, %edi\n"
-    "call *%edi\n"
-    "addl $16, %esp\n"
+      "andl %3, %%edi\n"      //REPLACE=(NSEEL_RAM_ITEMSPERBLOCK-1)
+      "shll $3, %%edi\n"      // 3 is log2(sizeof(EEL_F))
+      "addl %%edi, %%eax\n"
+    "2:"
 
-    "0:"
+    #ifndef _MSC_VER
+        :: "i" (((NSEEL_RAM_BLOCKS*NSEEL_RAM_ITEMSPERBLOCK))),
+           "i" ((NSEEL_RAM_ITEMSPERBLOCK_LOG2 - 2/*log2(sizeof(void *))*/   )),
+           "i" (((NSEEL_RAM_BLOCKS-1)*4 /*sizeof(void*)*/                   )),
+           "i" ((NSEEL_RAM_ITEMSPERBLOCK-1                                  ))
+    #endif
+
 
 
 #endif
@@ -1451,40 +1420,32 @@ void _asm_gmegabuf(void)
 #ifdef AMD64ABI
 
     "movl %rsi, %r15\n"
+    "fadd" EEL_F_SUFFIX " -8(%r12)\n"
     "movl $0xfefefefe, %rdi\n" // first parameter = context pointer
-    "movl $0xfefefefe, %rdx\n"
-    "fadd" EEL_F_SUFFIX " (%rdx)\n"
-    "fistpl (%r15)\n"
-    "xorl %rsi, %rsi\n"
-    "movl (%r15), %esi\n" // r15 = esi (from above)
+    "fistpl (%rsi)\n"
     "movl $0xfefefefe, %edx\n"
-    "subl $128, %rsp\n"
-    "call *%edx\n"
+    "movl (%rsi), %esi\n" 
+    "call *%rdx\n"
     "movl %r15, %rsi\n"
-    "addl $128, %rsp\n"
 
 #else
-    "movl $0xfefefefe, %ecx\n" // first parameter = context pointer
-    "movl $0xfefefefe, %edx\n"
-    "fadd" EEL_F_SUFFIX " (%rdx)\n"
-    "fistpl (%esi)\n"
-    "xorl %rdx, %rdx\n"
-    "movl (%esi), %edx\n"
-    "movl $0xfefefefe, %edi\n"
-    "subl $128, %rsp\n"
-    "call *%edi\n"
-    "addl $128, %rsp\n"
+    "fadd" EEL_F_SUFFIX " -8(%r12)\n"
+    "movl $0xfefefefe, %rcx\n" // first parameter = context pointer
+    "fistpl (%rsi)\n"
+    "movl $0xfefefefe, %rdi\n"
+    "movl (%rsi), %edx\n"
+    "subl X64_EXTRA_STACK_SPACE, %rsp\n"
+    "call *%rdi\n"
+    "addl X64_EXTRA_STACK_SPACE, %rsp\n"
 #endif
 
 
 #else
-    "movl $0xfefefefe, %edx\n"
-    "fadd" EEL_F_SUFFIX " (0xfefefefe)\n"
-    "fistpl (%esi)\n"
-    "subl $8, %esp\n" // keep stack aligned
-    "pushl (%esi)\n" // parameter
-    "pushl %edx\n" // push context pointer
+    "subl $16, %esp\n" // keep stack aligned
+    "movl $0xfefefefe, (%esp)\n"
+    "fadd" EEL_F_SUFFIX " -8(%ebx)\n"
     "movl $0xfefefefe, %edi\n"
+    "fistpl 4(%esp)\n"
     "call *%edi\n"
     "addl $16, %esp\n"
 
@@ -1729,32 +1690,31 @@ void nseel_asm_stack_exch_end(void) {}
 void win64_callcode() 
 {
 	__asm__(
-#ifdef AMD64ABI
-		"movll %edi, %eax\n"
-#else
-		"movll %ecx, %eax\n"
-#endif
-
 		"push %rbx\n"
 		"push %rbp\n"
-#ifndef AMD64ABI
-		"push %rdi\n"
-		"push %rsi\n"
 		"push %r12\n"
 		"push %r13\n"
-#endif
-		"push %r14\n" // on AMD64ABI, we'll use r14/r15 to save edi/esi
+		"push %r14\n"
 		"push %r15\n"
-		"call %eax\n"
-		"pop %r15\n"
-		"pop %r14\n"
-#ifndef AMD64ABI
-		"pop %r13\n"
-		"pop %r12\n"
+
+#ifdef AMD64ABI
+    "movll %rsi, %r12\n" // second parameter is ram-blocks pointer
+		"call %rdi\n"
+#else
+		"push %rdi\n"
+		"push %rsi\n"
+    "movll %rdx, %r12\n" // second parameter is ram-blocks pointer
+		"call %rcx\n"
 		"pop %rsi\n"
 		"pop %rdi\n"
-		"fclex\n"
 #endif
+
+		"fclex\n"
+
+		"pop %r15\n"
+		"pop %r14\n"
+		"pop %r13\n"
+		"pop %r12\n"
 		"pop %rbp\n"
 		"pop %rbx\n"
 		"ret\n"
