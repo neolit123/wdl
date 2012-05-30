@@ -19,7 +19,7 @@
 
 #define GLUE_MAX_FPSTACK_SIZE 0 // no stack support
 // #define GLUE_MAX_JMPSIZE 30000 // maximum relative jump size for this arch (if not defined, any jump is possible)
-#define GLUE_JMP_TYPE long
+#define GLUE_JMP_TYPE int
 /*
 	in arm mode the current instruction is -8 relative to the program counter
 	-4 would be the next instruction relative to the one we are executing
@@ -27,11 +27,13 @@
 #define GLUE_JMP_OFFSET (-8) // so -8 i guess  ?
 #define GLUE_JMP_OFFSET_MASK 0xffffffff
 
+/* this should technically give us a 32bit jump, unlike the b which is 26bit i think (+/- 33mb ) */
 static const unsigned char GLUE_JMP_NC[] =
 {
-  0xe5, 0x1f, 0xf0, 0x04, // ldr pc, [pc, #-4]
+  0xe5, 0x1f, 0xf0, 0x04,  // ldr pc, [pc, #-4]
   0x0, 0x0, 0x0, 0x0       // offset goes here
 };
+
 static const unsigned int GLUE_JMP_IF_P1_Z[]=
 {
   0x051ff004,    // ldreq  pc, [pc, #-4]
