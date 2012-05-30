@@ -1,50 +1,74 @@
+/*
+  the new glue code for arm isn't done yet.
+  
+  TODO...
+  
+  we are mostly porting ppc -> arm
+  but we don't have as many regiters:
+  
+  r3 -> r0
+  r5 -> r5
+  r14 -> r6
+  r15 -> r7
+  r16 -> r8
+  r17 -> r9
+*/
+
 #ifndef _NSEEL_GLUE_ARM_H_
 #define _NSEEL_GLUE_ARM_H_
 
-#define GLUE_MAX_JMPSIZE 30000 // maximum relative jump size for this arch (if not defined, any jump is possible)
-#define GLUE_JMP_TYPE short
-#define GLUE_JMP_OFFSET (-4) // jumps are from start of instruction on ppc
+#define GLUE_MAX_FPSTACK_SIZE 0 // no stack support
+// #define GLUE_MAX_JMPSIZE 30000 // maximum relative jump size for this arch (if not defined, any jump is possible)
+#define GLUE_JMP_TYPE long
+/*
+	in arm mode the current instruction is -8 relative to the program counter
+	-4 would be the next instruction relative to the one we are executing
+*/
+#define GLUE_JMP_OFFSET (-8) // so -8 i guess  ?
+#define GLUE_JMP_OFFSET_MASK 0xffffffff
 
-static const unsigned char GLUE_JMP_NC[] = { 0x48,0, 0, 0, }; // b <offset>
-
+static const unsigned char GLUE_JMP_NC[] =
+{
+  0xe5, 0x1f, 0xf0, 0x04, // ldr pc, [pc, #-4]
+  0x0, 0x0, 0x0, 0x0       // offset goes here
+};
 static const unsigned int GLUE_JMP_IF_P1_Z[]=
 {
-  0x2f830000,  //cmpwi cr7, r3, 0
-  0x419e0000,  // beq cr7, offset-bytes-from-startofthisinstruction
+  0x051ff004,    // ldreq  pc, [pc, #-4]
+  0x0,          // offset goes here
 };
 static const unsigned int GLUE_JMP_IF_P1_NZ[]=
 {
-  0x2f830000,  //cmpwi cr7, r3, 0
-  0x409e0000,  // bne cr7, offset-bytes-from-startofthisinstruction
+  0x151ff004,  // ldrne  pc, [pc, #-4]
+  0x0,         // offset goes here
 };
 
-
 #define GLUE_MOV_PX_DIRECTVALUE_SIZE 8
-/*
-static void GLUE_MOV_EAX_DIRECTVALUE_GEN(void *b, unsigned int v)
-{
-  *((unsigned int *)b) = 0xe51f0004; // e51R0004 	ldr	rR, [pc, #-4]
-  b = ((unsigned int *)b) + 1;
-  *(unsigned int *)b = v;
-}
-*/
 static void GLUE_MOV_PX_DIRECTVALUE_GEN(void *b, INT_PTR v, int wv) 
-{
-  static const unsigned short tab[3][2] = {
-    {0x3C60, 0x6063}, // addis r3, r0, hw -- ori r3,r3, lw
-    {0x3DC0, 0x61CE}, // addis r14, r0, hw -- ori r14, r14, lw
-    {0x3DE0, 0x61EF}, // addis r15, r0, hw -- oris r15, r15, lw
+{   
+  static const unsigned int tab[3] = {
+    0xe51f0004, // ldr r0, [pc, #-4]
+    0xe51f6004, // ldr r6, [pc, #-4]
+    0xe51f6004  // ldr r7, [pc, #-4]
   };
-  unsigned int uv=(unsigned int)v;
-	unsigned short *p=(unsigned short *)b;
-
-  *p++ = tab[wv][0]; // addis rX, r0, hw
-	*p++ = (uv>>16)&0xffff;
-  *p++ = tab[wv][1]; // ori rX, rX, lw
-	*p++ = uv&0xffff;
+  
+  *((unsigned int *)b) = tab[wv];
+  b = ((unsigned int *)b) + 1;
+  *(unsigned int *)b = v; // [pc, #-4]
 }
 
 
+// mov r5, lr
+// str r5, [sp, #-4]
+// sub sp, sp, #4
+static const unsigned int GLUE_FUNC_ENTER[3] = { 0xe1a0500e, 0xe50d5004, 0xe24dd004 };
+
+// ldr r5, [sp]
+// add sp, sp, #4
+// mov lr, r5
+static const unsigned int GLUE_FUNC_LEAVE[3] = { 0xe59d5000, 0xe28dd004, 0xe1a0e005 };
+
+/*
 // mflr r5
 // stwu r5, -8(r1)
 const static unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFF8 };
@@ -53,49 +77,79 @@ const static unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFF8 };
 // addi r1, r1, 8
 // mtlr r5
 const static unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210008, 0x7CA803A6 };
+*/
+
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
 
-const static unsigned int GLUE_RET[]={0x4E800020}; // blr
+// const static unsigned int GLUE_RET[]={0x4E800020}; // blr
+static const unsigned int GLUE_RET[] = { 0xe1a0f00e }; // mov pc, lr
 
 static int GLUE_RESET_WTP(unsigned char *out, void *ptr)
 {
-  const static unsigned int GLUE_SET_WTP_FROM_R17=0x7E308B78; // mr r16 (dest), r17 (src)
-  if (out) memcpy(out,&GLUE_SET_WTP_FROM_R17,sizeof(GLUE_SET_WTP_FROM_R17));
-  return sizeof(GLUE_SET_WTP_FROM_R17);
-
+  // const static unsigned int GLUE_SET_WTP_FROM_R17=0x7E308B78; // mr r16 (dest), r17 (src)
+  const static unsigned int GLUE_SET_WTP_FROM_R9 = 0xe1a08009; // mov r8, r9
+  if (out) memcpy(out,&GLUE_SET_WTP_FROM_R9,sizeof(GLUE_SET_WTP_FROM_R9));
+  return sizeof(GLUE_SET_WTP_FROM_R9);
 }
 
-
-
+/*
 // stwu r3, -8(r1)
 const static unsigned int GLUE_PUSH_P1[1]={ 0x9461FFF8};
+*/
+
+// str r0, [sp, #-8]
+// sub sp, sp, #8
+static const unsigned int GLUE_PUSH_P1[2] = { 0xe50d0004, 0xe24dd004 };
 
 
 #define GLUE_POP_PX_SIZE 8
 static void GLUE_POP_PX(void *b, int wv)
 {
-  static const unsigned int tab[3] ={
+  /*
+	static const unsigned int tab[3] ={
       0x80610000, // lwz r3, 0(r1)
       0x81c10000, // lwz r14, 0(r1)
       0x81e10000, // lwz r15, 0(r1)
   };
   ((unsigned int *)b)[0] = tab[wv];
   ((unsigned int *)b)[1] = 0x38210008; // addi r1,r1, 8
+  */
+  
+  static const unsigned int tab[3] ={
+      0xe59d0000, // ldr r0, [sp]
+      0xe59d6000, // ldr r6, [sp]
+      0xe59d7000, // ldr r7, [sp]
+  };
+  
+  ((unsigned int *)b)[0] = tab[wv];
+  ((unsigned int *)b)[1] = 0xe28dd008; // add sp, sp, #8
 }
 
 #define GLUE_SET_PX_FROM_P1_SIZE 4
 static void GLUE_SET_PX_FROM_P1(void *b, int wv)
 {
-  static const unsigned int tab[3]={
+  /*
+	static const unsigned int tab[3]={
     0x7c631b78, // never used: mr r3, r3
     0x7c6e1b78, // mr r14, r3
     0x7c6f1b78, // mr r15, r3
   };
   *(unsigned int *)b  = tab[wv];
+  */  
+  
+  static const unsigned int tab[3]={
+    0xe1a00000,  // mov r0, r0 = nop 
+    0xe1a06000,  // mov r6, r0
+    0xe1a07000,  // mov r7, r0
+  };
+  *(unsigned int *)b  = tab[wv];
 }
 
 
+// TODO: i forgot what register were used for the doubles...
+
+// ---------
 
 // lfd f2, 0(r3)
 // stfdu f2, -8(r1)
@@ -138,14 +192,25 @@ static int GLUE_COPY_VALUE_AT_P1_TO_PTR(unsigned char *buf, void *destptr)
 }
 
 
+// ---------
 
-static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
+static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp, INT_PTR rt)
 {
+  static const double consttab[] = { 
+    NSEEL_CLOSEFACTOR, 
+    4503601774854144.0 /* 0x43300000, 0x80000000, used for integer conversion*/, 
+  };
+  
+  // %2, %3 are a bit of an issue here.
+  // hmm, also we don't use "0x4330000080000000" for truncation in the soft-float port
+
   __asm__
   (
     ".data\n"
     "_flist0:\n"
     " .word " \
+  /* i wonder if we should define the table in c instead */
+
 /* 0    */  "nseel_add          ," \
 /* 4    */  "nseel_sub          ," \
 /* 8    */  "nseel_mul          ," \
@@ -173,69 +238,106 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp)
     "ldmia sp!, {r0-r12, pc}\n"
     "mov lr, r5\n"
     ".pool\n"
-    :: "r" (cp), "r" (bp)
+    :: "r" (cp), "r" (bp), "r" (rt), "r" (consttab)
   );
+  
+  /*  
+  // we could have r18 refer to the current user-stack pointer, someday, perhaps
+  __asm__(
+          "subi r1, r1, 128\n"
+          "stfd f31, 8(r1)\n"
+          "stfd f30, 16(r1)\n"
+          "stmw r13, 32(r1)\n"
+          "mtctr %0\n"
+          "mr r17, %1\n" 
+          "mr r13, %2\n"
+          "lfd f31, 0(%3)\n"
+          "lfd f30, 8(%3)\n"
+          "subi r17, r17, 8\n"
+          "mflr r0\n" 
+          "stw r0, 24(r1)\n"
+          "bctrl\n"
+          "lwz r0, 24(r1)\n"
+          "mtlr r0\n"
+          "lmw r13, 32(r1)\n"
+          "lfd f31, 8(r1)\n"
+          "lfd f30, 16(r1)\n"
+          "addi r1, r1, 128\n"
+            ::"r" (cp), "r" (bp), "r" (rt), "r" (consttab));
+  */
+  
 };
 
-static unsigned char *EEL_GLUE_set_immediate(void *_p, const void *newv)
+// the callback should work without problems
+INT_PTR *EEL_GLUE_set_immediate(void *_p, void *newv)
 {
   INT_PTR *p = (INT_PTR *)_p;
  
   while (p[0] != 0xdeadbeef) p++;
   p[0] = (INT_PTR)newv;
-  return (unsigned char *)++p;
+  return (INT_PTR *)++p;
 }
 
-  #define GLUE_SET_PX_FROM_WTP_SIZE sizeof(int)
-  static void GLUE_SET_PX_FROM_WTP(void *b, int wv)
-  {
-    static const unsigned int tab[3]={
-      0x7e038378, // mr r3, r16
-      0x7e0e8378, // mr r14, r16
-      0x7e0f8378, // mr r15, r16
-    };
-    *(unsigned int *)b = tab[wv];
-  }
-  static int GLUE_POP_FPSTACK_TO_PTR(unsigned char *buf, void *destptr)
-  {
-    // set r3 to destptr
-    // stfd f1, 0(r3)
-    if (buf)
-    {
-      unsigned int *bufptr = (unsigned int *)buf;
-      GLUE_MOV_PX_DIRECTVALUE_GEN(bufptr, (INT_PTR)destptr,0);
-      bufptr += GLUE_MOV_PX_DIRECTVALUE_SIZE/4;
-
-      *bufptr++ = 0xD8230000; // stfd f1, 0(r3)
-    }
-    return GLUE_MOV_PX_DIRECTVALUE_SIZE + sizeof(int);
-  }
-  #define GLUE_POP_FPSTACK_SIZE 0
-  static const unsigned int GLUE_POP_FPSTACK[1] = { 0 }; // no need to pop, not a stack
-
-  static const unsigned int GLUE_POP_FPSTACK_TOSTACK[] = {
-    0xdc21fff8, // stfdu f1, -8(r1)
+#define GLUE_SET_PX_FROM_WTP_SIZE sizeof(int)
+static void GLUE_SET_PX_FROM_WTP(void *b, int wv)
+{
+  /*
+	static const unsigned int tab[3]={
+    0x7e038378, // mr r3, r16
+    0x7e0e8378, // mr r14, r16
+    0x7e0f8378, // mr r15, r16
   };
-
-  static const unsigned int GLUE_POP_FPSTACK_TO_WTP_ANDPUSHADDR[] = { 
-    0xdc300008, // stfdu f1, 8(r16)
-    0x9601fff8, // stwu r16, -8(r1)
+  *(unsigned int *)b = tab[wv];
+  */  
+  
+  // looks like we write the return address conditionally here
+  static const unsigned int tab[3]={
+    0xe1a00008, // mov r0, r8
+    0xe1a06008, // mov r6, r8
+    0xe1a07008, // mov r7, r8
   };
+  *(unsigned int *)b = tab[wv];
+}
 
-  static const unsigned int GLUE_POP_FPSTACK_TO_WTP[] = { 
-    0xdc300008, // stfdu f1, 8(r16)
-  };
+// TODO (everything bellow)
 
-  #define GLUE_PUSH_VAL_AT_PX_TO_FPSTACK_SIZE 4
-  static void GLUE_PUSH_VAL_AT_PX_TO_FPSTACK(void *b, int wv)
+static int GLUE_POP_FPSTACK_TO_PTR(unsigned char *buf, void *destptr)
+{
+  // set r3 to destptr
+  // stfd f1, 0(r3)
+  if (buf)
   {
-    static const unsigned int tab[3] = {
-      0xC8230000, // lfd f1, 0(r3)
-      0xC82E0000, // lfd f1, 0(r14)
-      0xC82F0000, // lfd f1, 0(r15)
-    };
-    *(unsigned int *)b = tab[wv];
+    unsigned int *bufptr = (unsigned int *)buf;
+    GLUE_MOV_PX_DIRECTVALUE_GEN(bufptr, (INT_PTR)destptr,0);
+    bufptr += GLUE_MOV_PX_DIRECTVALUE_SIZE/4;
+
+    *bufptr++ = 0xD8230000; // stfd f1, 0(r3)
   }
+  return GLUE_MOV_PX_DIRECTVALUE_SIZE + sizeof(int);
+}
+// --------
+
+#define GLUE_POP_FPSTACK_SIZE 0
+static const unsigned int GLUE_POP_FPSTACK[1] = { 0 }; // no need to pop, not a stack
+
+static const unsigned int GLUE_POP_FPSTACK_TOSTACK[] = {
+  0xdc21fff8, // stfdu f1, -8(r1)
+};
+
+static const unsigned int GLUE_POP_FPSTACK_TO_WTP[] = { 
+  0xdc300008, // stfdu f1, 8(r16)
+};
+
+#define GLUE_PUSH_VAL_AT_PX_TO_FPSTACK_SIZE 4
+static void GLUE_PUSH_VAL_AT_PX_TO_FPSTACK(void *b, int wv)
+{
+  static const unsigned int tab[3] = {
+    0xC8230000, // lfd f1, 0(r3)
+    0xC82E0000, // lfd f1, 0(r14)
+    0xC82F0000, // lfd f1, 0(r15)
+  };
+  *(unsigned int *)b = tab[wv];
+}
 
 #define GLUE_POP_FPSTACK_TO_WTP_TO_PX_SIZE (sizeof(GLUE_POP_FPSTACK_TO_WTP) + GLUE_SET_PX_FROM_WTP_SIZE)
 static void GLUE_POP_FPSTACK_TO_WTP_TO_PX(unsigned char *buf, int wv)

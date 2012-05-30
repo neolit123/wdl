@@ -120,6 +120,10 @@
 
 #include "glue_ppc.h"
 
+#elif defined(__arm__)
+
+#include "glue_arm.h"
+
 #elif defined(_WIN64) || defined(__LP64__)
 
 #include "glue_x86_64.h"
@@ -570,7 +574,7 @@ static functionType fnTable1[] = {
 #endif
 
 
-#if defined(__ppc__) || defined(EEL_TARGET_PORTABLE)
+#if defined(__ppc__) || defined(__arm__) || defined(EEL_TARGET_PORTABLE)
    { "sin",   nseel_asm_1pdd,nseel_asm_1pdd_end,   1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK, {&sin} },
    { "cos",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK, {&cos} },
    { "tan",    nseel_asm_1pdd,nseel_asm_1pdd_end,   1|NSEEL_NPARAMS_FLAG_CONST|BIF_RETURNSONSTACK|BIF_LASTPARMONSTACK, {&tan}  },
@@ -1746,7 +1750,7 @@ static int compileNativeFunctionCall(compileContext *ctx, opcodeRec *op, unsigne
        ))
   {
     // assigning a value (from a variable or other non-computer), can use a fast assign (no denormal/result checking)
-     #ifndef __ppc__
+     #if !defined(__ppc__) && !defined(__arm__)
        func = nseel_asm_assign_fast;
        func_e = nseel_asm_assign_fast_end;
      #endif
