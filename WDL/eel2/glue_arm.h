@@ -36,13 +36,15 @@ static const unsigned char GLUE_JMP_NC[] =
 
 static const unsigned int GLUE_JMP_IF_P1_Z[]=
 {
-  0x051ff004,    // ldreq  pc, [pc, #-4]
-  0x0,          // offset goes here
+  0x059ff000,   // ldreq  pc, [pc, #0]
+  0xe28ff000,		// add pc, pc, #0
+  0x0           // offset goes here
 };
 static const unsigned int GLUE_JMP_IF_P1_NZ[]=
 {
-  0x151ff004,  // ldrne  pc, [pc, #-4]
-  0x0,         // offset goes here
+  0x159ff000,  // ldrne  pc, [pc, #0]
+  0xe28ff000,	 // add pc, pc, #0
+  0x0          // offset goes here
 };
 
 #define GLUE_MOV_PX_DIRECTVALUE_SIZE 8
