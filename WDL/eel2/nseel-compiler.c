@@ -120,6 +120,10 @@
 
 #include "glue_ppc.h"
 
+#elif defined(__arm__)
+
+#include "glue_arm.h"
+
 #elif defined(_WIN64) || defined(__LP64__)
 
 #include "glue_x86_64.h"

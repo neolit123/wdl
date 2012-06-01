@@ -6,45 +6,50 @@
   we are mostly porting ppc -> arm
   but we don't have as many regiters:
   
-  r3 -> r0
+  r3 -> r0  
   r5 -> r5
   r14 -> r6
   r15 -> r7
   r16 -> r8
   r17 -> r9
+  
+  r4 reserved and used to pass a function table with some nseel_asm_* pointers around.
+	should always be saved/restored on/from the stack when special calls are made.
 */
 
 #ifndef _NSEEL_GLUE_ARM_H_
 #define _NSEEL_GLUE_ARM_H_
 
 #define GLUE_MAX_FPSTACK_SIZE 0 // no stack support
-// #define GLUE_MAX_JMPSIZE 30000 // maximum relative jump size for this arch (if not defined, any jump is possible)
-#define GLUE_JMP_TYPE int
-/*
-	in arm mode the current instruction is -8 relative to the program counter
-	-4 would be the next instruction relative to the one we are executing
-*/
-#define GLUE_JMP_OFFSET (-8) // so -8 i guess  ?
-#define GLUE_JMP_OFFSET_MASK 0xffffffff
+// 2^23 = 8388608. has to be tested though.
+#define GLUE_MAX_JMPSIZE 8000000 // maximum relative jump size for this arch (if not defined, any jump is possible)
 
-/* this should technically give us a 32bit jump, unlike the b which is 26bit i think (+/- 33mb ) */
+/*
+	untested and i might have messed this one up.
+	encoded immediate addr for 'b':
+		enc(24bit) = ((target_offset - pc) >> 2) & 0xFFFFFF
+		b_machine_format(32bit) = b_opcode <conc> enc
+*/ 
+#define GLUE_JMP_SET_OFFSET(endOfInstruction, offset) \
+	(((int *)(endOfInstruction))[-1] = \
+		(((offset) - (((int *)(endOfInstruction))[-1] + 8)) >> 2) & 0xFFFFFF)
+
+/* 24bit relative jumps */
 static const unsigned char GLUE_JMP_NC[] =
 {
-  0xe5, 0x1f, 0xf0, 0x04,  // ldr pc, [pc, #-4]
-  0x0, 0x0, 0x0, 0x0       // offset goes here
+  0xea, 0x0, 0x0, 0x0 // b <offset>
 };
 
-static const unsigned int GLUE_JMP_IF_P1_Z[]=
+static const unsigned char GLUE_JMP_IF_P1_Z[] =
 {
-  0x059ff000,   // ldreq  pc, [pc, #0]
-  0xe28ff000,		// add pc, pc, #0
-  0x0           // offset goes here
+  0xe3, 0x50, 0x0, 0x0, // cmp r0, #0
+  0x0a, 0x0, 0x0, 0x0   // beq <offset> (zb = 0)
 };
-static const unsigned int GLUE_JMP_IF_P1_NZ[]=
+
+static const unsigned char GLUE_JMP_IF_P1_NZ[] =
 {
-  0x159ff000,  // ldrne  pc, [pc, #0]
-  0xe28ff000,	 // add pc, pc, #0
-  0x0          // offset goes here
+  0xe3, 0x50, 0x0, 0x0, // cmp r0, #0
+  0x1a, 0x0, 0x0, 0x0   // bne <offset> (zb != 0)
 };
 
 #define GLUE_MOV_PX_DIRECTVALUE_SIZE 8
@@ -60,7 +65,6 @@ static void GLUE_MOV_PX_DIRECTVALUE_GEN(void *b, INT_PTR v, int wv)
   b = ((unsigned int *)b) + 1;
   *(unsigned int *)b = v; // [pc, #-4]
 }
-
 
 // mov r5, lr
 // str r5, [sp, #-4]

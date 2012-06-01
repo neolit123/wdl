@@ -975,6 +975,7 @@ NSEEL_DECLARE_NAKED(_asm_gmegabuf)
 {
 
 }
+NSEEL_DECLARE_NAKED_NOP(_asm_gmegabuf_end)
 
 void nseel_asm_fcall(void)
 {
@@ -1192,10 +1193,78 @@ void nseel_asm_fptobool(void)
 }
 void nseel_asm_fptobool_end(void){ }
 
+void nseel_asm_assign_fast_fromfp(void)
+{
+  /*
+	__asm__(
+   "mr r3, r14\n"
+   "stfd f1, 0(r14)\n"
+  );
+  */
+}
+void nseel_asm_assign_fast_fromfp_end(void) {}
+
+
+void nseel_asm_assign_fast(void)
+{
+  /*
+	__asm__(
+   "lfd f1, 0(r3)\n"
+   "mr r3, r14\n"
+   "stfd f1, 0(r14)\n"
+  );
+  */
+}
+void nseel_asm_assign_fast_end(void) {}
+
+
+void nseel_asm_add_op_fast(void)
+{
+  /*
+	__asm__(
+   "lfd f2, 0(r14)\n"
+   "fadd f1, f1, f2\n"
+   "mr r3, r14\n"
+   "stfd f1, 0(r14)\n"
+  );
+  */
+}
+void nseel_asm_add_op_fast_end(void) {}
+
+
+void nseel_asm_sub_op_fast(void)
+{
+  /*
+	__asm__(
+   "lfd f2, 0(r14)\n"
+   "fsub f1, f2, f1\n"
+   "mr r3, r14\n"
+   "stfd f1, 0(r14)\n"
+  );
+  */
+}
+void nseel_asm_sub_op_fast_end(void) {}
+
+
+void nseel_asm_dbg_getstackptr(void)
+{
+  /*
+	__asm__(
+    "addis r11, 0, 0x4330\n"
+    "xoris r10, r1, 0x8000\n"
+    "stw r11, -8(r1)\n"   // 0x43300000
+    "stw r10, -4(r1)\n"  // our integer sign flipped
+    "lfd f1, -8(r1)\n"
+    "fsub f1, f1, f30\n"
+  );
+  */
+}
+void nseel_asm_dbg_getstackptr_end(void) {}
 
 
 
-NSEEL_DECLARE_NAKED_NOP(_asm_gmegabuf_end)
+
+
 
 #ifdef	__cplusplus
   }

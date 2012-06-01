@@ -10,7 +10,7 @@
 // we make sure they are clear (they should always be clear, anyway, since we always generate 4 byte instructions)
 #define GLUE_JMP_SET_OFFSET(endOfInstruction,offset) (((short *)(endOfInstruction))[-1] = ((offset) + 4) & 0xFFFC)
 
-static const unsigned char GLUE_JMP_NC[] = { 0x48,0, 0, 0, }; // b <offset>
+static const unsigned char GLUE_JMP_NC[] = { 0x48,0, 0, 0 }; // b <offset>
 
 static const unsigned int GLUE_JMP_IF_P1_Z[]=
 {
