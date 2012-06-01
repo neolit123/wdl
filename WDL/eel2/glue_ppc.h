@@ -3,9 +3,12 @@
 
 #define GLUE_MAX_FPSTACK_SIZE 0 // no stack support
 #define GLUE_MAX_JMPSIZE 30000 // maximum relative jump size for this arch (if not defined, any jump is possible)
-#define GLUE_JMP_TYPE short
-#define GLUE_JMP_OFFSET (-4) // jumps are from start of instruction on ppc
-#define GLUE_JMP_OFFSET_MASK 0xfffc
+
+
+// endOfInstruction is end of jump with relative offset, offset passed in is offset from end of dest instruction.
+// on PPC the offset needs to be from the start of the instruction (hence +4), and also the low two bits are flags so 
+// we make sure they are clear (they should always be clear, anyway, since we always generate 4 byte instructions)
+#define GLUE_JMP_SET_OFFSET(endOfInstruction,offset) (((short *)(endOfInstruction))[-1] = ((offset) + 4) & 0xFFFC)
 
 static const unsigned char GLUE_JMP_NC[] = { 0x48,0, 0, 0, }; // b <offset>
 
@@ -40,13 +43,13 @@ static void GLUE_MOV_PX_DIRECTVALUE_GEN(void *b, INT_PTR v, int wv)
 
 
 // mflr r5
-// stwu r5, -8(r1)
-const static unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFF8 };
+// stwu r5, -16(r1)
+const static unsigned int GLUE_FUNC_ENTER[2] = { 0x7CA802A6, 0x94A1FFF0 };
 
 // lwz r5, 0(r1)
-// addi r1, r1, 8
+// addi r1, r1, 16
 // mtlr r5
-const static unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210008, 0x7CA803A6 };
+const static unsigned int GLUE_FUNC_LEAVE[3] = { 0x80A10000, 0x38210010, 0x7CA803A6 };
 #define GLUE_FUNC_ENTER_SIZE sizeof(GLUE_FUNC_ENTER)
 #define GLUE_FUNC_LEAVE_SIZE sizeof(GLUE_FUNC_LEAVE)
 
@@ -62,8 +65,8 @@ static int GLUE_RESET_WTP(unsigned char *out, void *ptr)
 
 
 
-// stwu r3, -8(r1)
-const static unsigned int GLUE_PUSH_P1[1]={ 0x9461FFF8};
+// stwu r3, -16(r1)
+const static unsigned int GLUE_PUSH_P1[1]={ 0x9461FFF0};
 
 
 #define GLUE_POP_PX_SIZE 8
@@ -75,7 +78,7 @@ static void GLUE_POP_PX(void *b, int wv)
       0x81e10000, // lwz r15, 0(r1)
   };
   ((unsigned int *)b)[0] = tab[wv];
-  ((unsigned int *)b)[1] = 0x38210008; // addi r1,r1, 8
+  ((unsigned int *)b)[1] = 0x38210010; // addi r1,r1, 16
 }
 
 #define GLUE_SET_PX_FROM_P1_SIZE 4
@@ -92,20 +95,20 @@ static void GLUE_SET_PX_FROM_P1(void *b, int wv)
 
 
 // lfd f2, 0(r3)
-// stfdu f2, -8(r1)
-static const unsigned int GLUE_PUSH_P1PTR_AS_VALUE[] = { 0xC8430000, 0xDC41FFF8 };
+// stfdu f2, -16(r1)
+static const unsigned int GLUE_PUSH_P1PTR_AS_VALUE[] = { 0xC8430000, 0xDC41FFF0 };
 
 static int GLUE_POP_VALUE_TO_ADDR(unsigned char *buf, void *destptr)
 {    
   // lfd f2, 0(r1)
-  // addi r1,r1,8
+  // addi r1,r1,16
   // GLUE_MOV_PX_DIRECTVALUE_GEN / GLUE_MOV_PX_DIRECTVALUE_SIZE (r3)
   // stfd f2, 0(r3)
   if (buf)
   {
     unsigned int *bufptr = (unsigned int *)buf;
     *bufptr++ = 0xC8410000;
-    *bufptr++ = 0x38210008;    
+    *bufptr++ = 0x38210010;    
     GLUE_MOV_PX_DIRECTVALUE_GEN(bufptr, (INT_PTR)destptr,0);
     bufptr += GLUE_MOV_PX_DIRECTVALUE_SIZE/4;
     *bufptr++ = 0xd8430000;
@@ -202,7 +205,7 @@ static unsigned char *EEL_GLUE_set_immediate(void *_p, const void *newv)
   static const unsigned int GLUE_POP_FPSTACK[1] = { 0 }; // no need to pop, not a stack
 
   static const unsigned int GLUE_POP_FPSTACK_TOSTACK[] = {
-    0xdc21fff8, // stfdu f1, -8(r1)
+    0xdc21fff0, // stfdu f1, -16(r1)
   };
 
   static const unsigned int GLUE_POP_FPSTACK_TO_WTP[] = { 

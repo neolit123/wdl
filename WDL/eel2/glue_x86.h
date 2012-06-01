@@ -2,9 +2,9 @@
 #define _NSEEL_GLUE_X86_H_
 
 #define GLUE_MAX_FPSTACK_SIZE 8
-#define GLUE_JMP_TYPE int
-#define GLUE_JMP_OFFSET 0 // offset from end of instruction that is the "source" of the jump
-#define GLUE_JMP_OFFSET_MASK 0xffffffff
+
+// endOfInstruction is end of jump with relative offset, offset is offset from end of instruction to jump to
+#define GLUE_JMP_SET_OFFSET(endOfInstruction,offset) (((int *)(endOfInstruction))[-1] = (offset))
 
 static const unsigned char GLUE_JMP_NC[] = { 0xE9, 0,0,0,0, }; // jmp<offset>
 static const unsigned char GLUE_JMP_IF_P1_Z[] = {0x85, 0xC0, 0x0F, 0x84, 0,0,0,0 }; // test eax, eax, jz
@@ -215,8 +215,23 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp, INT_PTR ramptr)
     {
       mov eax, cp
       mov ebx, ramptr
+      
       pushad 
+      mov ebp, esp
+      and esp, -16
+
+       // on win32, which _MSC_VER implies, we keep things aligned to 16 bytes, and if we call a win32 function,
+       // the stack is 16 byte aligned before the call, meaning that if calling a function with no frame pointer,
+       // the stack would be aligned to a 16 byte boundary +4, which isn't good for performance. Having said that,
+       // normally we compile with frame pointers (which brings that to 16 byte + 8, which is fine), or ICC, which
+       // for nontrivial functions will align the stack itself (for very short functions, it appears to weigh the 
+       // cost of aligning the stack vs that of the slower misaligned double accesses).
+
+       // it may be worthwhile (at some point) to put some logic in the code that calls out to functions
+       // (generic1parm etc) to detect which alignment would be most optimal.
+      sub esp, 12
       call eax
+      mov esp, ebp
       popad
     };
 
@@ -321,5 +336,8 @@ static const unsigned char GLUE_FLD1[] = {0xd9, 0xe8};
 static EEL_F negativezeropointfive=-0.5f;
 static EEL_F onepointfive=1.5f;
 #define GLUE_INVSQRT_NEEDREPL &negativezeropointfive, &onepointfive,
+
+
+#define GLUE_HAS_NATIVE_TRIGSQRTLOG
 
 #endif

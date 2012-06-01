@@ -3,10 +3,8 @@
 
 
 #define DECL_ASMFUNC(x) 
-
 #define GLUE_JMP_TYPE int
-#define GLUE_JMP_OFFSET 0
-#define GLUE_JMP_OFFSET_MASK 0xffffffff
+#define GLUE_JMP_SET_OFFSET(endOfInstruction,offset) (((GLUE_JMP_TYPE *)(endOfInstruction))[-1] = (offset))
 
 #define GLUE_HAS_FXCH 
 #define GLUE_MAX_FPSTACK_SIZE 64
@@ -77,6 +75,8 @@ enum {
 
   EEL_BC_ADD_OP,
   EEL_BC_SUB_OP,
+  EEL_BC_ADD_OP_FAST,
+  EEL_BC_SUB_OP_FAST,
   EEL_BC_MUL_OP,
   EEL_BC_DIV_OP,
   EEL_BC_AND_OP,
@@ -87,6 +87,7 @@ enum {
 
   EEL_BC_ASSIGN,
   EEL_BC_ASSIGN_FAST,
+  EEL_BC_ASSIGN_FAST_FROMFP,
   EEL_BC_ASSIGN_FROMFP,
   EEL_BC_MOD,
   EEL_BC_MOD_OP,
@@ -130,6 +131,8 @@ enum {
   EEL_BC_USERSTACK_PEEK_INT,
   EEL_BC_USERSTACK_PEEK_TOP,
   EEL_BC_USERSTACK_EXCH,
+
+  EEL_BC_DBG_GETSTACKPTR,
 
 };
 
@@ -313,6 +316,8 @@ BC_DECLASM(xor,XOR)
 
 BC_DECLASM(add_op,ADD_OP)
 BC_DECLASM(sub_op,SUB_OP)
+BC_DECLASM(add_op_fast,ADD_OP_FAST)
+BC_DECLASM(sub_op_fast,SUB_OP_FAST)
 BC_DECLASM(mul_op,MUL_OP)
 BC_DECLASM(div_op,DIV_OP)
 BC_DECLASM(and_op,AND_OP)
@@ -323,6 +328,7 @@ BC_DECLASM(uminus,UMINUS)
 
 BC_DECLASM(assign,ASSIGN)
 BC_DECLASM(assign_fast,ASSIGN_FAST)
+BC_DECLASM(assign_fast_fromfp,ASSIGN_FAST_FROMFP)
 BC_DECLASM(assign_fromfp,ASSIGN_FROMFP)
 BC_DECLASM(mod,MOD)
 BC_DECLASM(mod_op,MOD_OP)
@@ -337,6 +343,7 @@ BC_DECLASM(max_fp,MAX_FP)
 BC_DECLASM(abs,ABS)
 BC_DECLASM(sign,SIGN)
 BC_DECLASM(invsqrt,INVSQRT)
+BC_DECLASM(dbg_getstackptr,DBG_GETSTACKPTR)
 
 BC_DECLASM(booltofp,BOOLTOFP)
 BC_DECLASM(fptobool,FPTOBOOL)
@@ -395,6 +402,7 @@ BC_DECLASM_N_EXPORT(generic3parm_retd,GENERIC3PARM_RETD,2)
 #define nseel_asm_max_fp_end EEL_BC_ENDOF(nseel_asm_max_fp)
 #define nseel_asm_sign_end EEL_BC_ENDOF(nseel_asm_sign)
 #define nseel_asm_invsqrt_end EEL_BC_ENDOF(nseel_asm_invsqrt)
+#define nseel_asm_dbg_getstackptr_end EEL_BC_ENDOF(nseel_asm_dbg_getstackptr)
 
 
 #define nseel_asm_add_end EEL_BC_ENDOF(nseel_asm_add)
@@ -408,6 +416,8 @@ BC_DECLASM_N_EXPORT(generic3parm_retd,GENERIC3PARM_RETD,2)
 
 #define nseel_asm_add_op_end EEL_BC_ENDOF(nseel_asm_add_op)
 #define nseel_asm_sub_op_end EEL_BC_ENDOF(nseel_asm_sub_op)
+#define nseel_asm_add_op_fast_end EEL_BC_ENDOF(nseel_asm_add_op_fast)
+#define nseel_asm_sub_op_fast_end EEL_BC_ENDOF(nseel_asm_sub_op_fast)
 #define nseel_asm_mul_op_end EEL_BC_ENDOF(nseel_asm_mul_op)
 #define nseel_asm_div_op_end EEL_BC_ENDOF(nseel_asm_div_op)
 #define nseel_asm_and_op_end EEL_BC_ENDOF(nseel_asm_and_op)
@@ -417,6 +427,7 @@ BC_DECLASM_N_EXPORT(generic3parm_retd,GENERIC3PARM_RETD,2)
 #define nseel_asm_uminus_end EEL_BC_ENDOF(nseel_asm_uminus)
 #define nseel_asm_assign_end EEL_BC_ENDOF(nseel_asm_assign)
 #define nseel_asm_assign_fast_end EEL_BC_ENDOF(nseel_asm_assign_fast)
+#define nseel_asm_assign_fast_fromfp_end EEL_BC_ENDOF(nseel_asm_assign_fast_fromfp)
 #define nseel_asm_assign_fromfp_end EEL_BC_ENDOF(nseel_asm_assign_fromfp)
 #define nseel_asm_mod_end EEL_BC_ENDOF(nseel_asm_mod)
 #define nseel_asm_mod_op_end EEL_BC_ENDOF(nseel_asm_mod_op)
@@ -703,16 +714,22 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp, INT_PTR rt)
       break;
 
       case EEL_BC_ADD_OP:
-        *(p1 = p2) += fp_pop();        
+        *(p1 = p2) = denormal_filter_double2(*p2 + fp_pop());
       break;
       case EEL_BC_SUB_OP:
+        *(p1 = p2) = denormal_filter_double2(*p2 - fp_pop());
+      break;
+      case EEL_BC_ADD_OP_FAST:
+        *(p1 = p2) += fp_pop();        
+      break;
+      case EEL_BC_SUB_OP_FAST:
         *(p1 = p2) -= fp_pop();
       break;
       case EEL_BC_MUL_OP:
-        *(p1 = p2) *= fp_pop();
+        *(p1 = p2) = denormal_filter_double2(*p2 * fp_pop());
       break;
       case EEL_BC_DIV_OP:
-        *(p1 = p2) /= fp_pop();
+        *(p1 = p2) = denormal_filter_double2(*p2 * fp_pop());
       break;
       case EEL_BC_AND_OP:
         p1 = p2;
@@ -736,6 +753,10 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp, INT_PTR rt)
 
       case EEL_BC_ASSIGN_FAST:
         *p2 = *p1;
+      break;
+      case EEL_BC_ASSIGN_FAST_FROMFP:
+        *p2 = fp_pop();
+        p1 = p2;
       break;
       case EEL_BC_ASSIGN_FROMFP:
         *p2 = denormal_filter_double2(fp_pop());
@@ -790,6 +811,9 @@ static void GLUE_CALL_CODE(INT_PTR bp, INT_PTR cp, INT_PTR rt)
       case EEL_BC_SIGN:
         if (fp_top<0.0) fp_top=-1.0;
         else if (fp_top>0.0) fp_top=1.0;
+      break;
+      case EEL_BC_DBG_GETSTACKPTR:
+        fp_top = (int)(INT_PTR)stackptr;
       break;
       case EEL_BC_INVSQRT:
         {
